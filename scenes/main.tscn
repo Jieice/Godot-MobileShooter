@@ -1,0 +1,417 @@
+[gd_scene load_steps=12 format=3 uid="uid://bqnhgvdvj6gxs"]
+
+[ext_resource type="Script" path="res://scripts/game_manager.gd" id="1_0ygmj"]
+[ext_resource type="Script" path="res://scripts/player.gd" id="2_1xnmr"]
+[ext_resource type="Texture2D" path="res://assets/sprites/player.svg" id="2_player_texture"]
+[ext_resource type="Script" path="res://scripts/enemy_spawner.gd" id="3_2ynop"]
+[ext_resource type="PackedScene" path="res://scenes/enemy.tscn" id="3_enemy_scene"]
+[ext_resource type="Script" path="res://scripts/ui_manager.gd" id="5_4abcd"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_1"]
+radius = 32.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_2"]
+radius = 24.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_1"]
+bg_color = Color(0.2, 0.2, 0.2, 0.8)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="LabelSettings" id="LabelSettings_1"]
+font_size = 24
+outline_size = 2
+outline_color = Color(0, 0, 0, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_2"]
+bg_color = Color(0.2, 0.2, 0.2, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0, 0, 0, 1)
+corner_radius_top_left = 5
+corner_radius_top_right = 5
+corner_radius_bottom_right = 5
+corner_radius_bottom_left = 5
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_3"]
+bg_color = Color(0.8, 0.2, 0.2, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0, 0, 0, 1)
+corner_radius_top_left = 5
+corner_radius_top_right = 5
+corner_radius_bottom_right = 5
+corner_radius_bottom_left = 5
+
+[node name="Main" type="Node"]
+
+[node name="GameManager" type="Node" parent="." groups=["game_manager"]]
+script = ExtResource("1_0ygmj")
+
+[node name="Player" type="CharacterBody2D" parent="." groups=["player"]]
+position = Vector2(360, 640)
+script = ExtResource("2_1xnmr")
+
+[node name="AnimatedSprite2D" type="Sprite2D" parent="Player"]
+scale = Vector2(0.5, 0.5)
+texture = ExtResource("2_player_texture")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player"]
+shape = SubResource("CircleShape2D_1")
+
+[node name="EnemySpawner" type="Node2D" parent="."]
+script = ExtResource("3_2ynop")
+enemy_scene = ExtResource("3_enemy_scene")
+spawn_interval = 2.0
+min_spawn_interval = 0.5
+difficulty_increase_rate = 0.05
+
+[node name="UI" type="CanvasLayer" parent="."]
+script = ExtResource("5_4abcd")
+
+[node name="ScoreLabel" type="Label" parent="UI"]
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 120.0
+offset_bottom = 60.0
+text = "得分: 0"
+label_settings = SubResource("LabelSettings_1")
+
+[node name="HealthBar" type="ProgressBar" parent="UI"]
+offset_left = 20.0
+offset_top = 70.0
+offset_right = 220.0
+offset_bottom = 97.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 1)
+theme_override_styles/background = SubResource("StyleBoxFlat_2")
+theme_override_styles/fill = SubResource("StyleBoxFlat_3")
+value = 100.0
+show_percentage = false
+
+[node name="HealthLabel" type="Label" parent="UI/HealthBar"]
+
+[node name="BottomPanel" type="Panel" parent="UI"]
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -200.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_1")
+
+[node name="TabContainer" type="TabContainer" parent="UI/BottomPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+tab_alignment = 1
+theme_override_font_sizes/font_size = 24
+
+[node name="属性" type="TabBar" parent="UI/BottomPanel/TabContainer"]
+layout_mode = 2
+
+[node name="StatsContainer" type="VBoxContainer" parent="UI/BottomPanel/TabContainer/属性"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="DamageLabel" type="Label" parent="UI/BottomPanel/TabContainer/属性/StatsContainer"]
+layout_mode = 2
+text = "伤害: 5"
+
+[node name="CritChanceLabel" type="Label" parent="UI/BottomPanel/TabContainer/属性/StatsContainer"]
+layout_mode = 2
+text = "暴击几率: 10%"
+
+[node name="CritMultiplierLabel" type="Label" parent="UI/BottomPanel/TabContainer/属性/StatsContainer"]
+layout_mode = 2
+text = "暴击倍率: 1.5x"
+
+[node name="DoubleChanceLabel" type="Label" parent="UI/BottomPanel/TabContainer/属性/StatsContainer"]
+layout_mode = 2
+text = "双连发几率: 30%"
+
+[node name="TripleChanceLabel" type="Label" parent="UI/BottomPanel/TabContainer/属性/StatsContainer"]
+layout_mode = 2
+text = "三连发几率: 10%"
+
+[node name="AttackSpeedLabel" type="Label" parent="UI/BottomPanel/TabContainer/属性/StatsContainer"]
+layout_mode = 2
+text = "攻击速度: 1.0/秒"
+
+[node name="设置" type="TabBar" parent="UI/BottomPanel/TabContainer"]
+visible = false
+layout_mode = 2
+
+[node name="SettingsContainer" type="VBoxContainer" parent="UI/BottomPanel/TabContainer/设置"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MusicLabel" type="Label" parent="UI/BottomPanel/TabContainer/设置/SettingsContainer"]
+layout_mode = 2
+text = "音乐音量"
+
+[node name="MusicSlider" type="HSlider" parent="UI/BottomPanel/TabContainer/设置/SettingsContainer"]
+layout_mode = 2
+value = 80.0
+
+[node name="SFXLabel" type="Label" parent="UI/BottomPanel/TabContainer/设置/SettingsContainer"]
+layout_mode = 2
+text = "音效音量"
+
+[node name="SFXSlider" type="HSlider" parent="UI/BottomPanel/TabContainer/设置/SettingsContainer"]
+layout_mode = 2
+value = 80.0
+
+[node name="背包" type="TabBar" parent="UI/BottomPanel/TabContainer"]
+visible = false
+layout_mode = 2
+
+[node name="InventoryContainer" type="GridContainer" parent="UI/BottomPanel/TabContainer/背包"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+columns = 5
+
+[node name="EmptySlot1" type="Panel" parent="UI/BottomPanel/TabContainer/背包/InventoryContainer"]
+custom_minimum_size = Vector2(60, 60)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_2")
+
+[node name="EmptySlot2" type="Panel" parent="UI/BottomPanel/TabContainer/背包/InventoryContainer"]
+custom_minimum_size = Vector2(60, 60)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_2")
+
+[node name="EmptySlot3" type="Panel" parent="UI/BottomPanel/TabContainer/背包/InventoryContainer"]
+custom_minimum_size = Vector2(60, 60)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_2")
+
+[node name="EmptySlot4" type="Panel" parent="UI/BottomPanel/TabContainer/背包/InventoryContainer"]
+custom_minimum_size = Vector2(60, 60)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_2")
+
+[node name="EmptySlot5" type="Panel" parent="UI/BottomPanel/TabContainer/背包/InventoryContainer"]
+custom_minimum_size = Vector2(60, 60)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_2")
+
+[node name="升级" type="TabBar" parent="UI/BottomPanel/TabContainer"]
+visible = false
+layout_mode = 2
+
+[node name="UpgradeContainer" type="HBoxContainer" parent="UI/BottomPanel/TabContainer/升级"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = 20.0
+offset_right = -20.0
+offset_bottom = -20.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 30
+
+[node name="LeftColumn" type="VBoxContainer" parent="UI/BottomPanel/TabContainer/升级/UpgradeContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 20
+
+[node name="DamageUpgrade" type="HBoxContainer" parent="UI/BottomPanel/TabContainer/升级/UpgradeContainer/LeftColumn"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/BottomPanel/TabContainer/升级/UpgradeContainer/LeftColumn/DamageUpgrade"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "伤害 +1"
+theme_override_font_sizes/font_size = 24
+
+[node name="Cost" type="Label" parent="UI/BottomPanel/TabContainer/升级/UpgradeContainer/LeftColumn/DamageUpgrade"]
+layout_mode = 2
+text = "100分"
+theme_override_font_sizes/font_size = 22
+
+[node name="UpgradeButton" type="Button" parent="UI/BottomPanel/TabContainer/升级/UpgradeContainer/LeftColumn/DamageUpgrade"]
+layout_mode = 2
+text = "升级"
+theme_override_font_sizes/font_size = 24
+custom_minimum_size = Vector2(100, 50)
+
+[node name="CritUpgrade" type="HBoxContainer" parent="UI/BottomPanel/TabContainer/升级/UpgradeContainer/LeftColumn"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/BottomPanel/TabContainer/升级/UpgradeContainer/LeftColumn/CritUpgrade"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "暴击几率 +5%"
+theme_override_font_sizes/font_size = 24
+
+[node name="Cost" type="Label" parent="UI/BottomPanel/TabContainer/升级/UpgradeContainer/LeftColumn/CritUpgrade"]
+layout_mode = 2
+text = "150分"
+theme_override_font_sizes/font_size = 22
+
+[node name="UpgradeButton" type="Button" parent="UI/BottomPanel/TabContainer/升级/UpgradeContainer/LeftColumn/CritUpgrade"]
+layout_mode = 2
+text = "升级"
+theme_override_font_sizes/font_size = 24
+custom_minimum_size = Vector2(100, 50)
+
+[node name="RightColumn" type="VBoxContainer" parent="UI/BottomPanel/TabContainer/升级/UpgradeContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 20
+
+[node name="MultiShotUpgrade" type="HBoxContainer" parent="UI/BottomPanel/TabContainer/升级/UpgradeContainer/RightColumn"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/BottomPanel/TabContainer/升级/UpgradeContainer/RightColumn/MultiShotUpgrade"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "多连发几率 +5%"
+theme_override_font_sizes/font_size = 24
+
+[node name="Cost" type="Label" parent="UI/BottomPanel/TabContainer/升级/UpgradeContainer/RightColumn/MultiShotUpgrade"]
+layout_mode = 2
+text = "200分"
+theme_override_font_sizes/font_size = 22
+
+[node name="UpgradeButton" type="Button" parent="UI/BottomPanel/TabContainer/升级/UpgradeContainer/RightColumn/MultiShotUpgrade"]
+layout_mode = 2
+text = "升级"
+theme_override_font_sizes/font_size = 24
+custom_minimum_size = Vector2(100, 50)
+
+[node name="AttackSpeedUpgrade" type="HBoxContainer" parent="UI/BottomPanel/TabContainer/升级/UpgradeContainer/RightColumn"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/BottomPanel/TabContainer/升级/UpgradeContainer/RightColumn/AttackSpeedUpgrade"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "攻击速度 +10%"
+theme_override_font_sizes/font_size = 24
+
+[node name="Cost" type="Label" parent="UI/BottomPanel/TabContainer/升级/UpgradeContainer/RightColumn/AttackSpeedUpgrade"]
+layout_mode = 2
+text = "180分"
+theme_override_font_sizes/font_size = 22
+
+[node name="UpgradeButton" type="Button" parent="UI/BottomPanel/TabContainer/升级/UpgradeContainer/RightColumn/AttackSpeedUpgrade"]
+layout_mode = 2
+text = "升级"
+theme_override_font_sizes/font_size = 24
+custom_minimum_size = Vector2(100, 50)
+
+[node name="HealthLabel" type="Label" parent="UI"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -50.0
+offset_top = -13.0
+offset_right = 50.0
+offset_bottom = 13.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "生命值: 100/100"
+horizontal_alignment = 1
+
+[node name="GameOverPanel" type="Panel" parent="UI"]
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -150.0
+offset_top = -100.0
+offset_right = 150.0
+offset_bottom = 100.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_1")
+
+[node name="GameOverLabel" type="Label" parent="UI/GameOverPanel"]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -100.0
+offset_top = 20.0
+offset_right = 100.0
+offset_bottom = 60.0
+grow_horizontal = 2
+text = "游戏结束"
+label_settings = SubResource("LabelSettings_1")
+horizontal_alignment = 1
+
+[node name="FinalScoreLabel" type="Label" parent="UI/GameOverPanel"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -100.0
+offset_top = -20.0
+offset_right = 100.0
+offset_bottom = 20.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "最终得分: 0"
+horizontal_alignment = 1
+
+[node name="RestartButton" type="Button" parent="UI/GameOverPanel"]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -60.0
+offset_top = -60.0
+offset_right = 60.0
+offset_bottom = -20.0
+grow_horizontal = 2
+grow_vertical = 0
+text = "重新开始"
+
+[connection signal="pressed" from="UI/GameOverPanel/RestartButton" to="UI" method="_on_restart_button_pressed"]
