@@ -6,12 +6,31 @@ signal enemy_died
 @export var health = 10
 @export var max_health = 10
 @export var damage = 5
+@export var defense = 0.0  # 防御值，减少受到的伤害百分比（0-1之间）
 @export var score_value = 10
 @export var attack_cooldown = 1.0  # 攻击冷却时间（秒）
 
 var target = null
 var is_alive = true
 var can_attack = true  # 是否可以攻击
+
+# 流血状态变量
+var is_bleeding = false
+var bleed_damage = 0
+var bleed_time_left = 0.0
+var bleed_tick_timer = 0.0
+var bleed_tick_interval = 1.0  # 每秒伤害一次
+
+# BOSS特殊效果
+var can_speed_burst = false  # 是否可以短暂加速
+var can_slow_area = false    # 是否可以范围减速
+var speed_burst_cooldown = 5.0  # 加速冷却时间
+var slow_area_cooldown = 8.0    # 减速冷却时间
+var speed_burst_duration = 2.0  # 加速持续时间
+var slow_area_duration = 3.0    # 减速持续时间
+var speed_burst_multiplier = 2.0  # 加速倍率
+var slow_area_radius = 200.0     # 减速范围半径
+var slow_area_factor = 0.5       # 减速因子
 
 func _ready():
 	# 将敌人添加到enemy组，以便玩家可以找到它们
@@ -22,6 +41,27 @@ func _ready():
 	
 	# 初始化血条
 	update_health_bar()
+	
+	# 创建流血效果图标（默认隐藏）
+	create_bleed_icon()
+	
+	# 如果是BOSS，设置特殊效果
+	if "is_boss" in self and self.is_boss:
+		setup_boss_effects()
+		
+# 创建流血效果图标
+func create_bleed_icon():
+	# 检查是否已经存在
+	if has_node("BleedIcon"):
+		return
+		
+	var bleed_icon = Sprite2D.new()
+	bleed_icon.name = "BleedIcon"
+	bleed_icon.texture = load("res://assets/sprites/blood_scratch.svg")
+	bleed_icon.position = Vector2(0, 0)  # 直接放在敌人身上
+	bleed_icon.scale = Vector2(0.7, 0.7)   # 适当调整大小
+	bleed_icon.visible = false  # 默认隐藏
+	add_child(bleed_icon)
 
 func _physics_process(delta):
 	if not is_alive or target == null:
@@ -33,6 +73,27 @@ func _physics_process(delta):
 	# 设置速度
 	velocity = direction * speed
 	
+	# 处理流血状态
+	if is_bleeding:
+		bleed_tick_timer -= delta
+		bleed_time_left -= delta
+		
+		# 每秒造成一次伤害
+		if bleed_tick_timer <= 0:
+			take_damage(bleed_damage, false)
+			bleed_tick_timer = bleed_tick_interval
+			
+			# 显示流血效果，间隔性闪红
+			modulate = Color(1.5, 0.3, 0.3)  # 红色闪烁
+			
+			await get_tree().create_timer(0.1).timeout
+			if is_alive:
+				modulate = Color(1.0, 0.7, 0.7)  # 轻微红色
+		
+		# 流血时间结束
+		if bleed_time_left <= 0:
+			stop_bleeding()
+	
 	# 移动敌人
 	move_and_slide()
 	
@@ -43,6 +104,10 @@ func _physics_process(delta):
 		
 		if collider.is_in_group("player"):
 			attack_player(collider)
+	
+	# BOSS特殊能力检查
+	if "is_boss" in self and self.is_boss:
+		check_boss_abilities()
 
 # 攻击玩家
 func attack_player(player):
@@ -53,24 +118,95 @@ func attack_player(player):
 		get_tree().create_timer(attack_cooldown).timeout.connect(func(): can_attack = true)
 
 # 敌人受到伤害
-func take_damage(damage_amount):
+func take_damage(damage_amount, show_effect = true, penetration = GameAttributes.penetration):
+	print("敌人受到伤害调用: ", damage_amount, " 当前生命值: ", health)
+	
 	if not is_alive:
+		print("敌人已死亡，不再受到伤害")
 		return
-		
-	health -= damage_amount
+	
+	# 应用防御穿透和防御属性减少伤害
+	var effective_defense = defense * (1.0 - penetration)  # 计算有效防御值
+	var actual_damage = damage_amount * (1.0 - effective_defense)
+	health -= actual_damage
+	print("敌人扣除伤害后生命值: ", health)
 	update_health_bar()
 	
 	if health <= 0:
+		print("敌人生命值为0，触发死亡")
 		die()
 	else:
 		# 播放受伤动画或效果
-		modulate = Color(1, 0.5, 0.5)  # 变红表示受伤
-		await get_tree().create_timer(0.1).timeout
-		modulate = Color(1, 1, 1)  # 恢复正常颜色
+		if show_effect:
+			modulate = Color(1, 0.5, 0.5)  # 变红表示受伤
+			await get_tree().create_timer(0.1).timeout
+			if is_alive:
+				if is_bleeding:
+					modulate = Color(1.0, 0.7, 0.7)  # 轻微红色（流血状态）
+				else:
+					modulate = Color(1, 1, 1)  # 恢复正常颜色
+
+func start_bleeding(damage_per_second, duration):
+	is_bleeding = true
+	bleed_damage = damage_per_second
+	bleed_time_left = duration
+	bleed_tick_timer = 0.0  # 立即开始计时
+	
+	# 显示流血图标并持续存在
+	if has_node("BleedIcon"):
+		$BleedIcon.visible = true
+	
+	# 视觉效果 - 轻微红色
+	$Sprite2D.modulate = Color(1.0, 0.7, 0.7)
+
+# 停止流血效果
+func stop_bleeding():
+	is_bleeding = false
+	bleed_damage = 0
+	bleed_time_left = 0
+	
+	# 恢复正常颜色
+	if is_alive:
+		$Sprite2D.modulate = Color(1, 1, 1)
+		
+	# 隐藏流血图标
+	if has_node("BleedIcon"):
+		$BleedIcon.visible = false
 		
 # 更新血条显示
 func update_health_bar():
-	$HealthBar.value = (float(health) / max_health) * 100
+	# 计算健康百分比
+	var health_percent = (float(health) / max_health) * 100
+	$HealthBar.value = health_percent
+	
+	# 检查是否为BOSS（通过分组或缩放比例判断）
+	var is_boss = is_in_group("boss") or scale.x >= 1.3 or scale.y >= 1.3
+	
+	# 更新血条文本显示
+	if $HealthBar.has_node("HealthLabel"):
+		if is_boss:
+			# BOSS显示具体血量
+			$HealthBar/HealthLabel.text = str(int(health)) + "/" + str(int(max_health))
+		else:
+			# 普通小怪只显示百分比
+			$HealthBar/HealthLabel.text = str(int(health_percent)) + "%"
+	else:
+		# 如果没有标签节点，创建一个
+		var label = Label.new()
+		label.name = "HealthLabel"
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		
+		if is_boss:
+			# BOSS显示具体血量
+			label.text = str(int(health)) + "/" + str(int(max_health))
+		else:
+			# 普通小怪只显示百分比
+			label.text = str(int(health_percent)) + "%"
+		
+		label.add_theme_color_override("font_color", Color(1, 1, 1)) # 白色文本
+		label.add_theme_font_size_override("font_size", 12) # 设置字体大小
+		$HealthBar.add_child(label)
 
 # 敌人死亡
 func die():
@@ -83,6 +219,104 @@ func die():
 	# 禁用碰撞
 	$CollisionShape2D.set_deferred("disabled", true)
 	
+	# 如果是BOSS，移除减速区域
+	if "is_boss" in self and self.is_boss and has_node("SlowArea"):
+		$SlowArea.queue_free()
+	
 	# 死亡后消失
 	await get_tree().create_timer(0.5).timeout
 	queue_free()
+
+# BOSS特殊效果设置
+func setup_boss_effects():
+	# 视觉效果 - 放大
+	scale = Vector2(1.5, 1.5)
+	
+	# 视觉效果 - 如果是20关以上的BOSS，添加红色边框
+	if "level" in self and self.level >= 20:
+		var outline = Sprite2D.new()
+		outline.texture = $Sprite2D.texture
+		outline.position = $Sprite2D.position
+		outline.scale = Vector2(1.1, 1.1)  # 略大于原始精灵
+		outline.modulate = Color(1, 0, 0, 0.5)  # 红色半透明
+		add_child(outline)
+		outline.z_index = -1  # 确保在原始精灵后面
+	
+	# 行为效果 - 短暂加速能力（20关以上）
+	if "level" in self and self.level >= 20:
+		can_speed_burst = true
+		get_tree().create_timer(randf_range(2.0, 5.0)).timeout.connect(activate_speed_burst)
+	
+	# 行为效果 - 范围减速能力（21关以上）
+	if "level" in self and self.level >= 21:
+		can_slow_area = true
+		get_tree().create_timer(randf_range(3.0, 6.0)).timeout.connect(activate_slow_area)
+
+# 检查BOSS特殊能力
+func check_boss_abilities():
+	pass  # 能力激活由定时器触发
+
+# 激活速度爆发
+func activate_speed_burst():
+	if not is_alive or not can_speed_burst:
+		return
+		
+	# 保存原始速度
+	var original_speed = speed
+	
+	# 增加速度
+	speed *= speed_burst_multiplier
+	
+	# 视觉效果
+	modulate = Color(1, 0.7, 0.2)  # 橙黄色表示加速
+	
+	# 持续一段时间后恢复
+	await get_tree().create_timer(speed_burst_duration).timeout
+	
+	if is_alive:
+		speed = original_speed
+		modulate = Color(1, 1, 1)
+	
+	# 冷却后再次激活
+	await get_tree().create_timer(speed_burst_cooldown).timeout
+	if is_alive and can_speed_burst:
+		activate_speed_burst()
+
+# 激活范围减速
+func activate_slow_area():
+	if not is_alive or not can_slow_area:
+		return
+	
+	# 创建减速区域
+	var slow_area = Area2D.new()
+	slow_area.name = "SlowArea"
+	
+	var collision_shape = CollisionShape2D.new()
+	var circle_shape = CircleShape2D.new()
+	circle_shape.radius = slow_area_radius
+	collision_shape.shape = circle_shape
+	slow_area.add_child(collision_shape)
+	
+	# 视觉效果 - 显示减速区域
+	var visual = Sprite2D.new()
+	visual.scale = Vector2(slow_area_radius / 32.0, slow_area_radius / 32.0)  # 假设基础纹理大小为64x64
+	visual.modulate = Color(0.2, 0.2, 1.0, 0.3)  # 蓝色半透明
+	slow_area.add_child(visual)
+	
+	add_child(slow_area)
+	
+	# 连接信号
+	slow_area.body_entered.connect(func(body):
+		if body.is_in_group("player"):
+			body.apply_slow_effect(slow_area_factor, slow_area_duration)
+	)
+	
+	# 持续一段时间后移除
+	await get_tree().create_timer(slow_area_duration).timeout
+	if is_alive and has_node("SlowArea"):
+		$SlowArea.queue_free()
+	
+	# 冷却后再次激活
+	await get_tree().create_timer(slow_area_cooldown).timeout
+	if is_alive and can_slow_area:
+		activate_slow_area()

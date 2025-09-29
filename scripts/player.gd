@@ -1,39 +1,67 @@
 extends CharacterBody2D
 
-signal player_hit
+# 玩家控制脚本
+# 处理玩家的移动、射击和状态
 
+# 信号
+signal player_hit
+signal player_damaged(amount)
+
+# 玩家特有属性，其他属性从GameAttributes获取
 @export var health = 80
 @export var max_health = 80
-@export var speed = 250
-@export var bullet_cooldown = 1.0  # 子弹冷却时间（秒）
-@export var auto_fire = true  # 自动发射子弹
-@export var double_shot_chance = 0.3  # 双连发几率
-@export var triple_shot_chance = 0.1  # 三连发几率
-@export var bullet_damage = 5  # 子弹基础伤害
-@export var crit_chance = 0.1  # 暴击几率 (10%)
-@export var crit_multiplier = 1.5  # 暴击伤害倍数
 
 # 预加载子弹场景
 var bullet_scene = preload("res://scenes/bullet.tscn")
+
+# 减速效果
+var is_slowed = false
+var current_speed_multiplier = 1.0
 
 # 玩家状态
 var is_alive = true
 var can_shoot = true
 
 func _ready():
-	# 初始化玩家
-	health = max_health
+	# 初始化玩家属性
+	health = GameAttributes.health
+	max_health = GameAttributes.max_health
+	
+	# 监听属性变化
+	GameAttributes.attributes_changed.connect(_on_attributes_changed)
 	
 	# 启动自动发射子弹的计时器
-	if auto_fire:
+	if GameAttributes.auto_fire:
 		start_auto_fire()
+
+# 当GameAttributes属性变化时更新
+func _on_attributes_changed():
+	# 这里可以处理属性变化后的逻辑
+	pass
 
 # 玩家受到伤害
 func take_damage(damage_amount):
 	if not is_alive:
 		return
+	
+	# 检查是否闪避
+	if randf() <= GameAttributes.dodge_chance:
+		# 显示闪避效果
+		show_dodge_effect()
+		return
 		
-	health -= damage_amount
+	# 检查是否触发濒死护盾
+	if GameAttributes.last_stand_shield_enabled and health <= max_health * GameAttributes.last_stand_shield_threshold:
+		print("触发濒死护盾，无敌", GameAttributes.last_stand_shield_duration, "秒")
+		$InvincibilityTimer.wait_time = GameAttributes.last_stand_shield_duration
+		$InvincibilityTimer.start()
+		$AnimatedSprite2D.modulate = Color(0.5, 0.8, 1.0)  # 蓝色护盾效果
+		return
+		
+	# 应用防御属性减少伤害
+	var actual_damage = damage_amount * (1.0 - GameAttributes.defense)
+	health -= actual_damage
+	emit_signal("player_damaged", actual_damage)
 	
 	if health <= 0:
 		health = 0
@@ -42,6 +70,31 @@ func take_damage(damage_amount):
 	# 播放受伤视觉效果
 	$AnimatedSprite2D.modulate = Color(1, 0.5, 0.5)  # 变红表示受伤
 	await get_tree().create_timer(0.1).timeout
+	$AnimatedSprite2D.modulate = Color(1, 1, 1)  # 恢复正常颜色
+	
+# 显示闪避效果
+func show_dodge_effect():
+	# 创建一个Label节点
+	var dodge_label = Label.new()
+	dodge_label.text = "闪避!"
+	
+	# 设置文本样式
+	dodge_label.add_theme_font_size_override("font_size", 16)
+	dodge_label.add_theme_color_override("font_color", Color(0.0, 1.0, 0.5)) # 绿色
+	dodge_label.add_theme_constant_override("outline_size", 1)
+	dodge_label.add_theme_color_override("font_outline_color", Color(1, 1, 1)) # 白色描边
+	
+	# 设置位置
+	dodge_label.global_position = global_position + Vector2(0, -50)
+	
+	# 添加到场景中
+	get_tree().get_root().add_child(dodge_label)
+	
+	# 创建动画效果
+	var tween = get_tree().create_tween()
+	tween.tween_property(dodge_label, "global_position", dodge_label.global_position + Vector2(0, -20), 0.8)
+	tween.parallel().tween_property(dodge_label, "modulate", Color(0.0, 1.0, 0.5, 0), 0.8)
+	tween.tween_callback(dodge_label.queue_free)
 	$AnimatedSprite2D.modulate = Color(1, 1, 1)  # 恢复正常颜色
 	
 	# 发出受伤信号
@@ -68,6 +121,22 @@ func _process(delta):
 	
 	# 手动射击功能保留，但不再需要按键触发
 	# 自动发射由start_auto_fire()函数处理
+	
+# 应用减速效果
+func apply_slow_effect(slow_factor, duration):
+	is_slowed = true
+	current_speed_multiplier = slow_factor
+	
+	# 视觉效果
+	$AnimatedSprite2D.modulate = Color(0.5, 0.5, 1.0)  # 蓝色表示减速
+	
+	# 持续一段时间后恢复
+	await get_tree().create_timer(duration).timeout
+	
+	if is_alive:
+		is_slowed = false
+		current_speed_multiplier = 1.0
+		$AnimatedSprite2D.modulate = Color(1, 1, 1)  # 恢复正常颜色
 		
 # 发射子弹
 func shoot():
@@ -78,10 +147,10 @@ func shoot():
 	var shot_count = 1
 	var random_value = randf()
 	
-	if random_value < triple_shot_chance:
+	if random_value < GameAttributes.triple_shot_chance:
 		shot_count = 3
 		show_multi_shot_text("三连发!")
-	elif random_value < triple_shot_chance + double_shot_chance:
+	elif random_value < GameAttributes.triple_shot_chance + GameAttributes.double_shot_chance:
 		shot_count = 2
 		show_multi_shot_text("双连发!")
 	
@@ -94,19 +163,53 @@ func shoot():
 		var bullet = bullet_scene.instantiate()
 		bullet.position = position
 		
-		# 设置子弹属性（使用玩家的属性设置）
-		bullet.damage = bullet_damage
-		bullet.crit_chance = crit_chance
-		bullet.crit_multiplier = crit_multiplier
+		# 子弹会在_ready中自动从GameAttributes获取属性
+		# 只需设置特殊情况下需要覆盖的属性
 		
-		# 如果是多连发，稍微调整方向使子弹散开
-		var bullet_direction = target_direction
-		if shot_count > 1:
-			# 为每个子弹添加一点随机偏移
-			var spread = 0.1 * (i - (shot_count - 1) / 2.0)
-			bullet_direction = target_direction.rotated(spread)
+		# 记录裂变流模式状态
+		if GameAttributes.is_fission_enabled:
+			print("裂变流模式激活!")
 		
-		bullet.direction = bullet_direction
+		# 根据连击数设置子弹颜色和位置
+		if shot_count == 2:  # 双发子弹
+			# 禁用暴击颜色变化，使用固定的浅蓝色
+			# 设置一个标志来禁用暴击，而不是直接修改crit_chance
+			bullet.is_critical = false  # 禁用暴击
+			
+			# 浅蓝色子弹
+			var style = bullet.get_node("Panel").get_theme_stylebox("panel").duplicate()
+			style.bg_color = Color("#87CEEB")
+			bullet.get_node("Panel").add_theme_stylebox_override("panel", style)
+			
+			# 平行排列，间距5px
+			var offset = Vector2(-5, 0) if i == 0 else Vector2(5, 0)
+			# 旋转偏移向量，使其与射击方向垂直
+			offset = offset.rotated(target_direction.angle() + PI/2)
+			bullet.position += offset
+			
+			# 设置方向（平行）
+			bullet.direction = target_direction
+			
+		elif shot_count == 3:  # 三发子弹
+			# 禁用暴击颜色变化，使用固定的深蓝色
+			bullet.is_critical = false  # 禁用暴击
+			
+			# 深蓝色子弹
+			var style = bullet.get_node("Panel").get_theme_stylebox("panel").duplicate()
+			style.bg_color = Color("#0000CD")
+			bullet.get_node("Panel").add_theme_stylebox_override("panel", style)
+			
+			# 扇形排列，角度各偏10°
+			var angle_offset = 0
+			if i == 0:
+				angle_offset = -10 * (PI/180)  # 左偏10度
+			elif i == 2:
+				angle_offset = 10 * (PI/180)   # 右偏10度
+			
+			bullet.direction = target_direction.rotated(angle_offset)
+		else:
+			# 默认单发 - 保持原始颜色
+			bullet.direction = target_direction
 		
 		# 将子弹添加到场景中（使用延迟调用避免在场景设置过程中添加节点）
 		get_parent().call_deferred("add_child", bullet)
@@ -123,14 +226,16 @@ func shoot():
 	
 	# 设置冷却
 	can_shoot = false
-	await get_tree().create_timer(bullet_cooldown).timeout
+	await get_tree().create_timer(GameAttributes.bullet_cooldown).timeout
 	can_shoot = true
 	
 # 启动自动发射子弹
 func start_auto_fire():
 	while is_alive:
 		shoot()
-		await get_tree().create_timer(bullet_cooldown).timeout
+		# 应用攻速属性影响子弹冷却时间
+		var adjusted_cooldown = GameAttributes.bullet_cooldown / GameAttributes.attack_speed
+		await get_tree().create_timer(adjusted_cooldown).timeout
 		
 # 寻找最近的敌人并返回朝向该敌人的方向
 func find_nearest_enemy_direction():
@@ -160,8 +265,10 @@ func show_multi_shot_text(text):
 	# 创建一个Label节点
 	var shot_label = Label.new()
 	shot_label.text = text
-	shot_label.add_theme_color_override("font_color", Color(1, 0.8, 0))  # 金色
+	shot_label.add_theme_color_override("font_color", Color("#87CEEB"))  # 浅蓝色
 	shot_label.add_theme_font_size_override("font_size", 20)  # 字体大小
+	shot_label.add_theme_constant_override("outline_size", 1)  # 1px描边
+	shot_label.add_theme_color_override("font_outline_color", Color(1, 1, 1))  # 白色描边
 	
 	# 设置位置
 	shot_label.global_position = global_position + Vector2(0, -40)  # 在玩家头上方显示
@@ -173,7 +280,7 @@ func show_multi_shot_text(text):
 	await get_tree().process_frame
 	var tween = get_tree().create_tween()
 	tween.tween_property(shot_label, "global_position", global_position + Vector2(0, -70), 0.5)  # 向上移动
-	tween.parallel().tween_property(shot_label, "modulate", Color(1, 0.8, 0, 0), 0.5)  # 淡出
+	tween.parallel().tween_property(shot_label, "modulate", Color("#87CEEB", 0), 0.5)  # 淡出
 	
 	# 动画完成后删除
 	await tween.finished
