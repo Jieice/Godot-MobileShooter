@@ -126,7 +126,7 @@ func start_wave():
 		level_manager.start_new_wave()
 	
 	# 检查是否需要生成BOSS
-	var current_level = self.current_level
+	var level_num = self.current_level
 	
 	# 设置BOSS效果
 	boss_effects = []
@@ -134,25 +134,25 @@ func start_wave():
 	boss_scale = 1.5
 	
 	# 根据关卡设置BOSS特性
-	if current_level == 10 and wave_count == max_waves:
+	if level_num == 10 and wave_count == max_waves:
 		# 10关BOSS：放大1.5倍，血量3倍
 		has_boss = true
 		boss_health_multiplier = 3.0
-	elif current_level == 15 and wave_count == max_waves:
+	elif level_num == 15 and wave_count == max_waves:
 		# 15关BOSS：放大1.5倍，血量3倍，带2只小怪
 		has_boss = true
 		boss_health_multiplier = 3.0
 		additional_enemies = 2
-	elif current_level == 20 and wave_count == max_waves:
+	elif level_num == 20 and wave_count == max_waves:
 		# 20关BOSS：红色边框，血量5倍，短暂加速
 		has_boss = true
 		boss_health_multiplier = 5.0
 		boss_effects.append("red_border")
 		boss_effects.append("speed_burst")
-	elif current_level > 20 and current_level % 5 == 0 and wave_count == max_waves:
+	elif level_num > 20 and level_num % 5 == 0 and wave_count == max_waves:
 		# 循环期BOSS：每5关数值×1.1倍、伪BOSS加"范围减速"
 		has_boss = true
-		boss_health_multiplier = 5.0 * pow(1.1, floor((current_level - 20) / 5))
+		boss_health_multiplier = 5.0 * pow(1.1, floor((float(level_num) - 20.0) / 5.0))
 		boss_effects.append("red_border")
 		boss_effects.append("speed_burst")
 		boss_effects.append("area_slow")
@@ -204,16 +204,16 @@ func spawn_boss():
 	var rand_side = randi() % 4
 	
 	match rand_side:
-		0:  # 上边
+		0: # 上边
 			spawn_position.x = screen_size.x / 2
 			spawn_position.y = -100
-		1:  # 右边
+		1: # 右边
 			spawn_position.x = screen_size.x + 100
 			spawn_position.y = screen_size.y / 2
-		2:  # 下边
+		2: # 下边
 			spawn_position.x = screen_size.x / 2
 			spawn_position.y = screen_size.y + 100
-		3:  # 左边
+		3: # 左边
 			spawn_position.x = -100
 			spawn_position.y = screen_size.y / 2
 	
@@ -240,7 +240,7 @@ func _on_spawn_timer_timeout():
 		
 		# 如果不是最后一波，则开始下一波
 		if wave_count < max_waves:
-			wave_timer.wait_time = 3.0  # 波次间隔
+			wave_timer.wait_time = 3.0 # 波次间隔
 			wave_timer.start()
 		return
 	
@@ -307,7 +307,7 @@ func spawn_enemy(is_boss = false):
 	else:
 		# 随机选择敌人类型
 		var enemy_type_keys = enemy_types.keys()
-		enemy_type_keys.erase("boss")  # 移除BOSS类型，BOSS单独生成
+		enemy_type_keys.erase("boss") # 移除BOSS类型，BOSS单独生成
 		var selected_type = enemy_type_keys[randi() % enemy_type_keys.size()]
 		type_config = enemy_types[selected_type]
 		
@@ -327,19 +327,19 @@ func spawn_enemy(is_boss = false):
 	
 	# 随机生成敌人位置（屏幕外围）
 	var spawn_position = Vector2.ZERO
-	var rand_side = randi() % 4  # 0: 上, 1: 右, 2: 下, 3: 左
+	var rand_side = randi() % 4 # 0: 上, 1: 右, 2: 下, 3: 左
 	
 	match rand_side:
-		0:  # 上边
+		0: # 上边
 			spawn_position.x = randf_range(0, screen_size.x)
 			spawn_position.y = -50
-		1:  # 右边
+		1: # 右边
 			spawn_position.x = screen_size.x + 50
 			spawn_position.y = randf_range(0, screen_size.y)
-		2:  # 下边
+		2: # 下边
 			spawn_position.x = randf_range(0, screen_size.x)
 			spawn_position.y = screen_size.y + 50
-		3:  # 左边
+		3: # 左边
 			spawn_position.x = -50
 			spawn_position.y = randf_range(0, screen_size.y)
 	

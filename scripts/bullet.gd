@@ -2,12 +2,14 @@ extends Area2D
 
 # 使用GameAttributes单例管理属性
 @export var speed = 400
-var damage = 5  # 默认值，将由GameAttributes设置
+var damage = 5 # 默认值，将由GameAttributes设置
 @export var lifetime = 2.0
 
 # 子弹特有属性
-var is_secondary_bullet = false  # 是否为次级子弹
-var fission_level = 0  # 当前分裂等级，0为原始子弹
+var is_secondary_bullet = false # 是否为次级子弹
+var fission_level = 0 # 当前分裂等级，0为原始子弹
+var penetration_count = 0 # 当前穿透次数
+var max_penetration = 0 # 最大穿透次数
 
 # 在_ready中从GameAttributes获取属性
 func _init():
@@ -15,12 +17,13 @@ func _init():
 	pass
 
 var direction = Vector2.RIGHT
-var is_critical = false  # 是否为暴击
-var is_crush = false  # 是否为压碎性打击
+var is_critical = false # 是否为暴击
+var is_crush = false # 是否为压碎性打击
 
 func _ready():
 	# 从GameAttributes获取属性
 	damage = GameAttributes.bullet_damage
+	max_penetration = GameAttributes.penetration_count
 	
 	# 设置子弹的生命周期
 	var timer = get_tree().create_timer(lifetime)
@@ -34,7 +37,7 @@ func _ready():
 		is_critical = true
 		# 暴击时子弹变大并变色
 		scale = Vector2(1.5, 1.5)
-		modulate = Color(1.0, 0.5, 0.0)  # 橙色
+		modulate = Color(1.0, 0.5, 0.0) # 橙色
 		damage *= GameAttributes.crit_multiplier
 	
 	# 压碎性打击和暴击互斥，优先判断压碎性打击
@@ -43,7 +46,7 @@ func _ready():
 		is_crush = true
 		# 压碎性打击时子弹变为紫色并有特殊效果
 		scale = Vector2(1.3, 1.3)
-		modulate = Color(0.5, 0.0, 0.8)  # 紫色
+		modulate = Color(0.5, 0.0, 0.8) # 紫色
 		
 	# 如果是次级子弹，应用特殊视觉效果
 	if is_secondary_bullet:
@@ -57,9 +60,9 @@ func _ready():
 			if !is_critical && !is_crush:
 				modulate = Color(0.0, 0.9, 0.9)
 
-func _process(delta):
+func _process(_delta):
 	# 移动子弹
-	position += direction * speed * delta
+	position += direction * speed * _delta
 
 func _on_body_entered(body):
 	# 添加调试输出
@@ -69,6 +72,17 @@ func _on_body_entered(body):
 	if body.is_in_group("enemy"):
 		var final_damage = damage
 		var is_boss = body.is_in_group("boss") or (body.scale.x >= 1.3 or body.scale.y >= 1.3)
+		var is_elite = is_boss or (body.scale.x >= 1.3 or body.scale.y >= 1.3)
+		
+		# 应用精英伤害MOD效果
+		if is_elite and GameAttributes.elite_damage_bonus > 0:
+			final_damage *= (1.0 + GameAttributes.elite_damage_bonus)
+			print("精英伤害加成: +", GameAttributes.elite_damage_bonus * 100, "%")
+		
+		# 更新任务进度 - 击杀敌人
+		if has_node("/root/QuestSystem"):
+			var quest_system = get_node("/root/QuestSystem")
+			quest_system.update_quest_progress("kill", 1)
 		
 		# 检查是否触发流血效果
 		var bleed_roll = randf()
@@ -80,11 +94,12 @@ func _on_body_entered(body):
 			print("触发流血效果! 每秒伤害: ", GameAttributes.bleed_damage_per_second, " 持续时间: ", GameAttributes.bleed_duration)
 		
 		# 压碎性打击判定（对BOSS有额外几率）
-		if is_crush or (!is_critical and randf() <= (GameAttributes.crush_chance + (GameAttributes.crush_boss_bonus if is_boss else 0))):
+		var boss_bonus = GameAttributes.crush_boss_bonus if is_boss else 0.0
+		if is_crush or (!is_critical and randf() <= (GameAttributes.crush_chance + boss_bonus)):
 			# 压碎性打击按目标当前生命值百分比造成伤害
-			var percent_damage = 0.05  # 基础5%当前生命值
+			var percent_damage = 0.05 # 基础5%当前生命值
 			if is_boss:
-				percent_damage = 0.03  # BOSS降低到3%防止过强
+				percent_damage = 0.03 # BOSS降低到3%防止过强
 			
 			# 计算百分比伤害，最小为基础伤害值
 			var crush_damage = max(damage, body.health * percent_damage)
@@ -98,6 +113,10 @@ func _on_body_entered(body):
 			final_damage = damage * GameAttributes.crit_multiplier
 			# 显示暴击文本，传递敌人对象
 			show_crit_text(body.global_position, body)
+			# 更新任务进度 - 暴击
+			if has_node("/root/QuestSystem"):
+				var quest_system = get_node("/root/QuestSystem")
+				quest_system.update_quest_progress("crit", 1)
 		
 		print("对敌人造成伤害: ", final_damage)
 		body.take_damage(final_damage)
@@ -112,9 +131,20 @@ func _on_body_entered(body):
 				call_deferred("create_fission_bullets", body.global_position)
 				print("子弹分裂! 等级: ", fission_level, " 分裂数量: ", GameAttributes.fission_count)
 		
-		# 连锁闪电效果将在卡牌mod中实现
+		# 检查穿透效果
+		penetration_count += 1
 		
-		queue_free()
+		# 检查连锁反应MOD触发条件
+		if GameAttributes.chain_reaction_enabled and penetration_count >= 3:
+			trigger_chain_reaction(body.global_position)
+		
+		if penetration_count > max_penetration:
+			# 子弹击中敌人后销毁
+			queue_free()
+		else:
+			# 穿透效果：子弹继续飞行，但伤害略微降低
+			damage *= 0.9 # 每次穿透后伤害降低10%
+			print("子弹穿透! 剩余穿透次数: ", max_penetration - penetration_count)
 		
 # 显示暴击文本
 func show_crit_text(pos, _enemy = null):
@@ -142,7 +172,7 @@ func show_crit_text(pos, _enemy = null):
 	tween.tween_callback(crit_label.queue_free)
 
 # 显示压碎性打击文本
-func show_crush_text(pos, _enemy = null, crush_damage = 0):
+func show_crush_text(pos, _enemy = null, _crush_damage = 0):
 	# 创建一个RichTextLabel节点，以支持更丰富的文本效果
 	var rich_text = RichTextLabel.new()
 	
@@ -211,7 +241,7 @@ func create_fission_bullets(pos):
 		new_bullet.is_secondary_bullet = true
 		new_bullet.fission_level = fission_level + 1
 		new_bullet.damage = damage * GameAttributes.fission_damage_ratio
-		new_bullet.scale = scale * 0.8  # 固定缩放比例
+		new_bullet.scale = scale * 0.8 # 固定缩放比例
 		
 		# 设置随机方向（在一个圆形范围内）
 		var random_angle = randf_range(0, 2 * PI)
@@ -249,3 +279,64 @@ func show_fission_text(pos):
 	tween.tween_property(fission_label, "global_position", fission_label.global_position + Vector2(0, -20), 0.8)
 	tween.parallel().tween_property(fission_label, "modulate", Color(0.0, 0.7, 1.0, 0), 0.8)
 	tween.tween_callback(fission_label.queue_free)
+
+# 触发连锁反应
+func trigger_chain_reaction(pos):
+	print("触发连锁反应! 位置: ", pos)
+	
+	# 创建爆炸效果
+	create_explosion_effect(pos)
+	
+	# 对范围内的敌人造成伤害
+	damage_enemies_in_range(pos, 1.0, 100) # 1.0半径，100伤害
+	
+	# 显示连锁反应文字
+	show_chain_reaction_text(pos)
+
+# 创建爆炸效果
+func create_explosion_effect(pos):
+	# 创建爆炸粒子效果（简化版）
+	var explosion = Sprite2D.new()
+	explosion.texture = load("res://assets/sprites/blood_scratch.svg") # 使用现有纹理
+	explosion.scale = Vector2(2.0, 2.0)
+	explosion.modulate = Color(1.0, 0.5, 0.0, 0.8) # 橙色
+	explosion.global_position = pos
+	
+	# 添加到场景
+	get_tree().get_root().add_child(explosion)
+	
+	# 动画效果
+	var tween = get_tree().create_tween()
+	tween.tween_property(explosion, "scale", Vector2(4.0, 4.0), 0.3)
+	tween.parallel().tween_property(explosion, "modulate:a", 0.0, 0.3)
+	tween.tween_callback(explosion.queue_free)
+
+# 对范围内的敌人造成伤害
+func damage_enemies_in_range(pos, radius, damage_amount):
+	var enemies = get_tree().get_nodes_in_group("enemy")
+	
+	for enemy in enemies:
+		if enemy.is_alive:
+			var distance = pos.distance_to(enemy.global_position)
+			if distance <= radius * 100: # 转换为像素单位
+				enemy.take_damage(damage_amount)
+				print("连锁反应伤害: ", damage_amount, " 对敌人: ", enemy.name)
+
+# 显示连锁反应文字
+func show_chain_reaction_text(pos):
+	var chain_label = Label.new()
+	chain_label.text = "连锁反应!"
+	chain_label.add_theme_color_override("font_color", Color(1.0, 0.5, 0.0)) # 橙色
+	chain_label.add_theme_font_size_override("font_size", 18)
+	chain_label.add_theme_constant_override("outline_size", 2)
+	chain_label.add_theme_color_override("font_outline_color", Color(1, 1, 1)) # 白色描边
+	chain_label.position = pos + Vector2(0, -60)
+	
+	# 添加到场景
+	get_tree().get_root().add_child(chain_label)
+	
+	# 动画效果
+	var tween = get_tree().create_tween()
+	tween.tween_property(chain_label, "position", chain_label.position + Vector2(0, -40), 1.0)
+	tween.parallel().tween_property(chain_label, "modulate:a", 0.0, 1.0)
+	tween.tween_callback(chain_label.queue_free)

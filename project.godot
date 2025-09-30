@@ -18,15 +18,19 @@ config/icon="res://icon.svg"
 [autoload]
 
 GameAttributes="*res://scripts/game_attributes.gd"
+ModSystem="*res://scripts/mod_system.gd"
+SaveSystem="*res://scripts/save_system.gd"
+ModDropSystem="*res://scripts/mod_drop_system.gd"
+QuestSystem="*res://scripts/quest_system.gd"
 
 [display]
 
 window/size/viewport_width=720
 window/size/viewport_height=1280
-window/size/window_width_override=360
-window/size/window_height_override=640
+window/size/resizable=false
+window/size/window_width_override=600
+window/size/window_height_override=1000
 window/stretch/mode="canvas_items"
-window/stretch/aspect="keep_height"
 window/handheld/orientation=1
 
 [input_devices]

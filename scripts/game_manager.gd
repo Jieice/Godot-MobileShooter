@@ -3,6 +3,7 @@ extends Node
 signal score_updated
 signal game_over_triggered
 signal level_changed(level_number)
+signal game_restarted
 
 var score = 0 # 现在表示金币数量
 var game_running = true
@@ -28,6 +29,14 @@ func _ready():
 	
 	# 开始第一关
 	start_level(1)
+	
+	# 设置生存时间任务更新定时器
+	var survival_timer = Timer.new()
+	survival_timer.wait_time = 60.0 # 每分钟更新一次
+	survival_timer.autostart = true
+	survival_timer.one_shot = false
+	add_child(survival_timer)
+	survival_timer.connect("timeout", Callable(self, "_on_survival_timer_timeout"))
 
 func add_score(coins):
 	if not game_running:
@@ -35,6 +44,11 @@ func add_score(coins):
 		
 	score += coins
 	emit_signal("score_updated", score)
+	
+	# 同时添加经验值（金币的50%转换为经验值）
+	var exp_gained = int(coins * 0.5)
+	if exp_gained > 0:
+		level_manager.add_experience(exp_gained)
 
 func start_level(level_number):
 	if not game_running:
@@ -49,10 +63,16 @@ func start_level(level_number):
 # 玩家升级处理
 func _on_player_level_up(level):
 	print("玩家升级到 ", level, " 级")
+	
+	# 更新UI显示
+	var ui_manager = get_node_or_null("/root/Main/UI")
+	if ui_manager and ui_manager.has_method("update_level_display"):
+		var level_info = level_manager.get_player_level_info()
+		ui_manager.update_level_display(level, level_info)
 
 func _on_level_started(level_number, level_data):
 	# 更新UI显示当前关卡
-	var ui_manager = get_node_or_null("/root/Main/UIManager")
+	var ui_manager = get_node_or_null("/root/Main/UI")
 	if ui_manager and ui_manager.has_method("update_level_display"):
 		ui_manager.update_level_display(level_number, level_data)
 
@@ -63,7 +83,7 @@ func _on_level_completed(level_number):
 
 func _on_level_progress_updated(current_progress, target_progress):
 	# 更新UI显示关卡进度
-	var ui_manager = get_node_or_null("/root/Main/UIManager")
+	var ui_manager = get_node_or_null("/root/Main/UI")
 	if ui_manager and ui_manager.has_method("update_level_progress"):
 		ui_manager.update_level_progress(current_progress, target_progress)
 
@@ -79,6 +99,7 @@ func game_over():
 func restart_game():
 	# 重置游戏状态
 	score = 0
+	emit_signal("score_updated", score) # 更新UI显示
 	game_running = true
 	current_level = 1
 	
@@ -95,5 +116,11 @@ func restart_game():
 	
 	# 发送游戏重启信号
 	emit_signal("game_restarted")
+
+# 生存时间任务更新
+func _on_survival_timer_timeout():
+	if game_running and has_node("/root/QuestSystem"):
+		var quest_system = get_node("/root/QuestSystem")
+		quest_system.update_quest_progress("survive", 1)
 
 # 天赋UI功能已移除

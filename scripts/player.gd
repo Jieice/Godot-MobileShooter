@@ -53,9 +53,11 @@ func take_damage(damage_amount):
 	# 检查是否触发濒死护盾
 	if GameAttributes.last_stand_shield_enabled and health <= max_health * GameAttributes.last_stand_shield_threshold:
 		print("触发濒死护盾，无敌", GameAttributes.last_stand_shield_duration, "秒")
-		$InvincibilityTimer.wait_time = GameAttributes.last_stand_shield_duration
-		$InvincibilityTimer.start()
-		$AnimatedSprite2D.modulate = Color(0.5, 0.8, 1.0)  # 蓝色护盾效果
+		var inv_timer = get_node_or_null("InvincibilityTimer")
+		if inv_timer:
+			inv_timer.wait_time = GameAttributes.last_stand_shield_duration
+			inv_timer.start()
+		$AnimatedSprite2D.modulate = Color(0.5, 0.8, 1.0) # 蓝色护盾效果
 		return
 		
 	# 应用防御属性减少伤害
@@ -68,9 +70,9 @@ func take_damage(damage_amount):
 		die()
 	
 	# 播放受伤视觉效果
-	$AnimatedSprite2D.modulate = Color(1, 0.5, 0.5)  # 变红表示受伤
+	$AnimatedSprite2D.modulate = Color(1, 0.5, 0.5) # 变红表示受伤
 	await get_tree().create_timer(0.1).timeout
-	$AnimatedSprite2D.modulate = Color(1, 1, 1)  # 恢复正常颜色
+	$AnimatedSprite2D.modulate = Color(1, 1, 1) # 恢复正常颜色
 	
 # 显示闪避效果
 func show_dodge_effect():
@@ -95,7 +97,7 @@ func show_dodge_effect():
 	tween.tween_property(dodge_label, "global_position", dodge_label.global_position + Vector2(0, -20), 0.8)
 	tween.parallel().tween_property(dodge_label, "modulate", Color(0.0, 1.0, 0.5, 0), 0.8)
 	tween.tween_callback(dodge_label.queue_free)
-	$AnimatedSprite2D.modulate = Color(1, 1, 1)  # 恢复正常颜色
+	$AnimatedSprite2D.modulate = Color(1, 1, 1) # 恢复正常颜色
 	
 	# 发出受伤信号
 	emit_signal("player_hit")
@@ -104,7 +106,7 @@ func show_dodge_effect():
 func die():
 	is_alive = false
 	# 死亡视觉效果
-	$AnimatedSprite2D.modulate = Color(0.5, 0.5, 0.5)  # 变灰表示死亡
+	$AnimatedSprite2D.modulate = Color(0.5, 0.5, 0.5) # 变灰表示死亡
 	
 	# 游戏结束逻辑
 	await get_tree().create_timer(2.0).timeout
@@ -115,7 +117,7 @@ func heal(amount):
 	health = min(health + amount, max_health)
 	
 # 处理输入和移动
-func _process(delta):
+func _process(_delta):
 	if not is_alive:
 		return
 	
@@ -128,7 +130,7 @@ func apply_slow_effect(slow_factor, duration):
 	current_speed_multiplier = slow_factor
 	
 	# 视觉效果
-	$AnimatedSprite2D.modulate = Color(0.5, 0.5, 1.0)  # 蓝色表示减速
+	$AnimatedSprite2D.modulate = Color(0.5, 0.5, 1.0) # 蓝色表示减速
 	
 	# 持续一段时间后恢复
 	await get_tree().create_timer(duration).timeout
@@ -136,7 +138,7 @@ func apply_slow_effect(slow_factor, duration):
 	if is_alive:
 		is_slowed = false
 		current_speed_multiplier = 1.0
-		$AnimatedSprite2D.modulate = Color(1, 1, 1)  # 恢复正常颜色
+		$AnimatedSprite2D.modulate = Color(1, 1, 1) # 恢复正常颜色
 		
 # 发射子弹
 func shoot():
@@ -150,12 +152,24 @@ func shoot():
 	if random_value < GameAttributes.triple_shot_chance:
 		shot_count = 3
 		show_multi_shot_text("三连发!")
+		# 更新任务进度 - 连击
+		if has_node("/root/QuestSystem"):
+			var quest_system = get_node("/root/QuestSystem")
+			quest_system.update_quest_progress("combo", 1)
 	elif random_value < GameAttributes.triple_shot_chance + GameAttributes.double_shot_chance:
 		shot_count = 2
 		show_multi_shot_text("双连发!")
+		# 更新任务进度 - 连击
+		if has_node("/root/QuestSystem"):
+			var quest_system = get_node("/root/QuestSystem")
+			quest_system.update_quest_progress("combo", 1)
 	
-	# 获取最近的敌人作为目标
-	var target_direction = find_nearest_enemy_direction()
+	# 获取目标方向
+	var target_directions = []
+	if GameAttributes.dual_target_enabled:
+		target_directions = find_dual_target_directions()
+	else:
+		target_directions = [find_nearest_enemy_direction()]
 	
 	# 发射子弹
 	for i in range(shot_count):
@@ -170,11 +184,14 @@ func shoot():
 		if GameAttributes.is_fission_enabled:
 			print("裂变流模式激活!")
 		
+		# 选择目标方向
+		var target_direction = target_directions[i % target_directions.size()]
+		
 		# 根据连击数设置子弹颜色和位置
-		if shot_count == 2:  # 双发子弹
+		if shot_count == 2: # 双发子弹
 			# 禁用暴击颜色变化，使用固定的浅蓝色
 			# 设置一个标志来禁用暴击，而不是直接修改crit_chance
-			bullet.is_critical = false  # 禁用暴击
+			bullet.is_critical = false # 禁用暴击
 			
 			# 浅蓝色子弹
 			var style = bullet.get_node("Panel").get_theme_stylebox("panel").duplicate()
@@ -184,15 +201,15 @@ func shoot():
 			# 平行排列，间距5px
 			var offset = Vector2(-5, 0) if i == 0 else Vector2(5, 0)
 			# 旋转偏移向量，使其与射击方向垂直
-			offset = offset.rotated(target_direction.angle() + PI/2)
+			offset = offset.rotated(target_direction.angle() + PI / 2)
 			bullet.position += offset
 			
 			# 设置方向（平行）
 			bullet.direction = target_direction
 			
-		elif shot_count == 3:  # 三发子弹
+		elif shot_count == 3: # 三发子弹
 			# 禁用暴击颜色变化，使用固定的深蓝色
-			bullet.is_critical = false  # 禁用暴击
+			bullet.is_critical = false # 禁用暴击
 			
 			# 深蓝色子弹
 			var style = bullet.get_node("Panel").get_theme_stylebox("panel").duplicate()
@@ -202,9 +219,9 @@ func shoot():
 			# 扇形排列，角度各偏10°
 			var angle_offset = 0
 			if i == 0:
-				angle_offset = -10 * (PI/180)  # 左偏10度
+				angle_offset = -10 * (PI / 180) # 左偏10度
 			elif i == 2:
-				angle_offset = 10 * (PI/180)   # 右偏10度
+				angle_offset = 10 * (PI / 180) # 右偏10度
 			
 			bullet.direction = target_direction.rotated(angle_offset)
 		else:
@@ -220,9 +237,9 @@ func shoot():
 	
 	# 视觉反馈 - 玩家短暂发光
 	if shot_count > 1:
-		modulate = Color(1.0, 1.0, 0.5, 1.0)  # 黄色发光
+		modulate = Color(1.0, 1.0, 0.5, 1.0) # 黄色发光
 		await get_tree().create_timer(0.1).timeout
-		modulate = Color(1.0, 1.0, 1.0, 1.0)  # 恢复正常
+		modulate = Color(1.0, 1.0, 1.0, 1.0) # 恢复正常
 	
 	# 设置冷却
 	can_shoot = false
@@ -234,6 +251,7 @@ func start_auto_fire():
 	while is_alive:
 		shoot()
 		# 应用攻速属性影响子弹冷却时间
+		# attack_speed是倍率，1.0为基础速度，>1.0为加速
 		var adjusted_cooldown = GameAttributes.bullet_cooldown / GameAttributes.attack_speed
 		await get_tree().create_timer(adjusted_cooldown).timeout
 		
@@ -247,31 +265,103 @@ func find_nearest_enemy_direction():
 	if enemies.size() == 0:
 		return Vector2(randf_range(-1, 1), randf_range(-1, 1)).normalized()
 	
-	# 寻找最近的敌人
+	# 应用攻击范围天赋 - 只考虑范围内的敌人
+	var max_attack_range = 300.0 * GameAttributes.attack_range # 基础范围300像素
+	
+	# 寻找最近的敌人（在攻击范围内）
+	# 优先考虑精英敌人（如果有精英优先率天赋）
+	var elite_enemies = []
+	var normal_enemies = []
+	
 	for enemy in enemies:
 		var distance = global_position.distance_to(enemy.global_position)
-		if distance < min_distance:
-			min_distance = distance
-			nearest_enemy = enemy
+		# 只考虑在攻击范围内的敌人
+		if distance <= max_attack_range:
+			if enemy.is_in_group("boss") or enemy.scale.x >= 1.3 or enemy.scale.y >= 1.3:
+				elite_enemies.append({"enemy": enemy, "distance": distance})
+			else:
+				normal_enemies.append({"enemy": enemy, "distance": distance})
+	
+	# 应用精英优先率天赋
+	var use_elite_priority = randf() <= GameAttributes.elite_priority_chance
+	var target_list = elite_enemies if use_elite_priority and elite_enemies.size() > 0 else normal_enemies
+	
+	# 如果精英优先失败或没有精英，使用普通敌人列表
+	if target_list.size() == 0:
+		target_list = normal_enemies
+	
+	# 从目标列表中找到最近的敌人
+	for enemy_data in target_list:
+		if enemy_data.distance < min_distance:
+			min_distance = enemy_data.distance
+			nearest_enemy = enemy_data.enemy
 	
 	# 返回朝向最近敌人的方向
 	if nearest_enemy:
 		return (nearest_enemy.global_position - global_position).normalized()
 	else:
+		# 如果没有在范围内的敌人，随机方向
 		return Vector2(randf_range(-1, 1), randf_range(-1, 1)).normalized()
+
+# 寻找双目标方向
+func find_dual_target_directions():
+	var enemies = get_tree().get_nodes_in_group("enemy")
+	var directions = []
+	
+	# 如果没有敌人，返回两个随机方向
+	if enemies.size() == 0:
+		return [Vector2(randf_range(-1, 1), randf_range(-1, 1)).normalized(),
+				Vector2(randf_range(-1, 1), randf_range(-1, 1)).normalized()]
+	
+	# 应用攻击范围天赋
+	var max_attack_range = 300.0 * GameAttributes.attack_range
+	
+	# 分类敌人
+	var elite_enemies = []
+	var normal_enemies = []
+	
+	for enemy in enemies:
+		var distance = global_position.distance_to(enemy.global_position)
+		if distance <= max_attack_range:
+			if enemy.is_in_group("boss") or enemy.scale.x >= 1.3 or enemy.scale.y >= 1.3:
+				elite_enemies.append({"enemy": enemy, "distance": distance})
+			else:
+				normal_enemies.append({"enemy": enemy, "distance": distance})
+	
+	# 优先选择精英敌人
+	var target_list = elite_enemies if elite_enemies.size() > 0 else normal_enemies
+	
+	# 按距离排序
+	target_list.sort_custom(func(a, b): return a.distance < b.distance)
+	
+	# 选择前两个最近的敌人
+	for i in range(min(2, target_list.size())):
+		var enemy = target_list[i].enemy
+		directions.append((enemy.global_position - global_position).normalized())
+	
+	# 如果只有一个目标，添加一个随机方向
+	if directions.size() == 1:
+		directions.append(Vector2(randf_range(-1, 1), randf_range(-1, 1)).normalized())
+	
+	# 如果没有目标，返回两个随机方向
+	if directions.size() == 0:
+		directions = [Vector2(randf_range(-1, 1), randf_range(-1, 1)).normalized(),
+					  Vector2(randf_range(-1, 1), randf_range(-1, 1)).normalized()]
+	
+	return directions
 
 # 显示多连发文字
 func show_multi_shot_text(text):
 	# 创建一个Label节点
 	var shot_label = Label.new()
 	shot_label.text = text
-	shot_label.add_theme_color_override("font_color", Color("#87CEEB"))  # 浅蓝色
-	shot_label.add_theme_font_size_override("font_size", 20)  # 字体大小
-	shot_label.add_theme_constant_override("outline_size", 1)  # 1px描边
-	shot_label.add_theme_color_override("font_outline_color", Color(1, 1, 1))  # 白色描边
+	shot_label.add_theme_color_override("font_color", Color("#87CEEB")) # 浅蓝色
+	shot_label.add_theme_font_size_override("font_size", 20) # 字体大小
+	shot_label.add_theme_constant_override("outline_size", 1) # 1px描边
+	shot_label.add_theme_color_override("font_outline_color", Color(1, 1, 1)) # 白色描边
 	
 	# 设置位置
-	shot_label.global_position = global_position + Vector2(0, -40)  # 在玩家头上方显示
+	shot_label.global_position = global_position + Vector2(0, -40) # 在玩家头上方显示
 	
 	# 添加到场景（使用延迟调用避免在场景设置过程中添加节点）
 	get_tree().get_root().call_deferred("add_child", shot_label)
@@ -279,9 +369,22 @@ func show_multi_shot_text(text):
 	# 创建动画效果（延迟到下一帧执行）
 	await get_tree().process_frame
 	var tween = get_tree().create_tween()
-	tween.tween_property(shot_label, "global_position", global_position + Vector2(0, -70), 0.5)  # 向上移动
-	tween.parallel().tween_property(shot_label, "modulate", Color("#87CEEB", 0), 0.5)  # 淡出
+	tween.tween_property(shot_label, "global_position", global_position + Vector2(0, -70), 0.5) # 向上移动
+	tween.parallel().tween_property(shot_label, "modulate", Color("#87CEEB", 0), 0.5) # 淡出
 	
 	# 动画完成后删除
 	await tween.finished
 	shot_label.queue_free()
+
+# 恢复生命值
+func restore_health(amount):
+	if not is_alive:
+		return
+	
+	health = min(health + amount, max_health)
+	print("恢复生命值: ", amount, " 当前生命值: ", health)
+	
+	# 更新UI
+	var ui_manager = get_node_or_null("/root/Main/UI")
+	if ui_manager and ui_manager.has_method("update_health_bar"):
+		ui_manager.update_health_bar(health, max_health)
