@@ -6,10 +6,19 @@ signal level_progress_updated(current_progress, target_progress)
 signal wave_started(wave_number, total_waves)
 signal boss_spawned(level_number)
 signal player_level_up(level)
+signal talent_points_changed(points)
 
 # 当前关卡
 var current_level = 1
-var max_level = 100  # 设置一个较大的值以支持循环期
+var max_level = 100 # 设置一个较大的值以支持循环期
+
+# 玩家等级系统
+var player_level = 1
+var player_max_level = 30
+var player_exp = 0
+var exp_to_next_level = 100
+var talent_points = 0
+var total_talent_points = 0
 
 # 关卡进度
 var current_progress = 0
@@ -20,11 +29,11 @@ var enemies_per_wave = 0
 
 # 关卡阶段
 enum LevelPhase {
-	BEGINNER,    # 新手期 (1-5关)
-	TRANSITION,  # 过渡期 (6-10关)
-	GROWTH,      # 成长期 (11-15关)
-	MATURE,      # 成熟期 (16-20关)
-	LOOP         # 循环期 (21关+)
+	BEGINNER, # 新手期 (1-5关)
+	TRANSITION, # 过渡期 (6-10关)
+	GROWTH, # 成长期 (11-15关)
+	MATURE, # 成熟期 (16-20关)
+	LOOP # 循环期 (21关+)
 }
 
 # 获取当前关卡阶段
@@ -45,7 +54,7 @@ func get_loop_multiplier():
 	if current_level <= 20:
 		return 1.0
 	
-	var loop_count = floor((current_level - 21) / 5.0) + 1
+	var loop_count = floor((float(current_level) - 21.0) / 5.0) + 1
 	return pow(1.1, loop_count)
 
 # 获取当前关卡配置
@@ -118,8 +127,8 @@ func get_level_config():
 			var base_multiplier = get_loop_multiplier()
 			config.health_multiplier = 1.8 * base_multiplier
 			config.speed_multiplier = 1.5 * base_multiplier
-			config.enemies_per_wave = min(20, floor(12 * base_multiplier))
-			config.wave_interval = max(3.0, 5.0 - (base_multiplier - 1) * 2)
+			config.enemies_per_wave = min(20, int(floor(12.0 * base_multiplier)))
+			config.wave_interval = max(3.0, 5.0 - (base_multiplier - 1.0) * 2.0)
 			
 			# 每5关出现伪BOSS，并且有范围减速效果
 			if current_level % 5 == 0:
@@ -127,7 +136,7 @@ func get_level_config():
 				config.boss_scale = 1.5
 				config.boss_health_multiplier = 5.0 * base_multiplier
 				config.boss_effects = ["red_border", "speed_burst", "area_slow"]
-				config.additional_enemies = min(5, floor((current_level - 20) / 10))
+				config.additional_enemies = min(5, int(floor((float(current_level) - 20.0) / 10.0)))
 	
 	return config
 
@@ -146,12 +155,12 @@ func start_level(level_number):
 	# 设置关卡进度
 	current_progress = 0
 	current_wave = 0
-	total_waves = 5  # 每关5波怪物
+	total_waves = 5 # 每关5波怪物
 	enemies_per_wave = level_config.enemies_per_wave
 	target_progress = total_waves * enemies_per_wave
 	
 	if level_config.has_boss:
-		target_progress += 1  # BOSS算1个进度
+		target_progress += 1 # BOSS算1个进度
 		if level_config.additional_enemies > 0:
 			target_progress += level_config.additional_enemies
 	
@@ -241,3 +250,103 @@ func get_progress_percentage():
 	if target_progress == 0:
 		return 0
 	return (float(current_progress) / float(target_progress)) * 100.0
+
+# 玩家等级系统功能
+func add_experience(amount):
+	player_exp += amount
+	
+	# 显示经验值获取效果
+	var ui_manager = get_node_or_null("/root/Main/UI")
+	if ui_manager and ui_manager.has_method("show_exp_gain_effect"):
+		ui_manager.show_exp_gain_effect(amount)
+	
+	# 检查是否升级
+	while player_exp >= exp_to_next_level and player_level < player_max_level:
+		level_up()
+	
+	# 更新UI
+	if ui_manager and ui_manager.has_method("update_exp_bar"):
+		ui_manager.update_exp_bar(player_exp, exp_to_next_level)
+
+func level_up():
+	player_level += 1
+	player_exp -= exp_to_next_level
+	
+	# 更新任务进度 - 等级提升
+	if has_node("/root/QuestSystem"):
+		var quest_system = get_node("/root/QuestSystem")
+		quest_system.update_quest_progress("level", 1)
+	
+	# 计算下一级所需经验值 (每级增加20%)
+	exp_to_next_level = int(exp_to_next_level * 1.2)
+	
+	# 每升3级获得1点天赋点
+	if player_level % 3 == 0:
+		talent_points += 1
+		total_talent_points += 1
+		emit_signal("talent_points_changed", talent_points)
+		# 同步刷新天赋UI（如果存在）
+		var ui_manager = get_node_or_null("/root/Main/UI")
+		if ui_manager and ui_manager.has_method("initialize_talent_page"):
+			ui_manager.initialize_talent_page()
+	
+	# 显示升级效果
+	var ui_mgr = get_node_or_null("/root/Main/UI")
+	if ui_mgr and ui_mgr.has_method("show_level_up_effect"):
+		ui_mgr.show_level_up_effect(player_level)
+	
+	# 发送升级信号
+	emit_signal("player_level_up", player_level)
+	
+	# 更新玩家属性
+	update_player_attributes()
+
+func update_player_attributes():
+	# 获取玩家节点
+	var player = get_node_or_null("/root/Main/Player")
+	if not player:
+		return
+	
+	# 基础属性值
+	var base_health = 100
+	var _base_speed = 300
+	var _base_damage = 10
+	
+	# 每级增加的属性百分比
+	var health_per_level = 0.05 # 5%
+	var _speed_per_level = 0.02 # 2%
+	var _damage_per_level = 0.04 # 4%
+	
+	# 计算新属性值
+	var health_multiplier = 1.0 + (player_level - 1) * health_per_level
+	var _speed_multiplier = 1.0 + (player_level - 1) * _speed_per_level
+	var _damage_multiplier = 1.0 + (player_level - 1) * _damage_per_level
+	
+	# 更新玩家属性
+	player.max_health = int(base_health * health_multiplier)
+	player.health = player.max_health # 升级时恢复满血
+	# 注意：CharacterBody2D没有speed和damage属性，这些应该通过GameAttributes管理
+	# player.speed = base_speed * speed_multiplier  # 移除这行
+	# player.damage = base_damage * damage_multiplier  # 移除这行
+	
+	# 更新UI显示
+	var ui_manager = get_node_or_null("/root/Main/UI")
+	if ui_manager and ui_manager.has_method("update_player_attributes"):
+		ui_manager.update_player_attributes(player)
+
+func use_talent_point():
+	if talent_points > 0:
+		talent_points -= 1
+		emit_signal("talent_points_changed", talent_points)
+		return true
+	return false
+
+func get_player_level_info():
+	return {
+		"level": player_level,
+		"max_level": player_max_level,
+		"exp": player_exp,
+		"exp_to_next": exp_to_next_level,
+		"talent_points": talent_points,
+		"total_talent_points": total_talent_points
+	}
