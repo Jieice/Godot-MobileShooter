@@ -1,4 +1,4 @@
-# Godot 4+ specific ignores
+﻿# Godot 4+ specific ignores
 .godot/
 
 # Godot-specific ignores
@@ -19,4 +19,16 @@ mono_crash.*.json
 *.swp
 *~
 .vscode/
-.vs/
+
+# Android build files (too large for GitHub)
+android/build/
+*.aar
+
+# Generated files
+MobileShooter.*
+*.tmp
+*.pck
+*.idsig
+
+# Temporary files
+~$*
