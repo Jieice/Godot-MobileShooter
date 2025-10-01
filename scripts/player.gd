@@ -35,9 +35,56 @@ func _ready():
 		start_auto_fire()
 
 # 当GameAttributes属性变化时更新
-func _on_attributes_changed():
-	# 这里可以处理属性变化后的逻辑
-	pass
+func _on_attributes_changed(attribute_name, value):
+	print("Player: _on_attributes_changed called for ", attribute_name, ": ", value)
+	match attribute_name:
+		"player_speed":
+			# TODO: 更新玩家移动速度
+			pass
+		"max_health":
+			max_health = value
+			# 同时更新当前生命值，避免升级生命上限后当前生命值不变
+			# health = min(health, max_health) # 这行由GameAttributes统一管理
+			GameAttributes.update_attribute("health", min(GameAttributes.health, value))
+			# if has_node("/root/Main/HUD"):
+			#	get_node("/root/Main/HUD").update_health_bar(health, max_health)
+		"health": # 如果直接修改了health属性（例如被治疗）
+			health = value
+			# if has_node("/root/Main/HUD"):
+			#	get_node("/root/Main/HUD").update_health_bar(health, max_health)
+		"bullet_damage":
+			# 子弹伤害会在bullet.gd中直接从GameAttributes读取
+			pass
+		"bullet_cooldown":
+			# 射击冷却会在start_auto_fire中重新计算
+			pass
+		"attack_range":
+			# 攻击范围会在find_nearest_enemy_direction中直接从GameAttributes读取
+			pass
+		"defense":
+			# 防御会在take_damage中直接从GameAttributes读取
+			pass
+		"dodge_chance":
+			# 闪避几率会在take_damage中直接从GameAttributes读取
+			pass
+		"last_stand_shield_enabled", "last_stand_shield_duration", "last_stand_shield_threshold":
+			# 濒死护盾相关属性会在take_damage中直接从GameAttributes读取
+			pass
+		"elite_priority_chance":
+			# 精英优先率会在find_nearest_enemy_direction中直接从GameAttributes读取
+			pass
+		"dual_target_enabled":
+			# 双目标锁定会在shoot中直接从GameAttributes读取
+			pass
+		"attack_speed":
+			# 攻击速度会在start_auto_fire中重新计算射击间隔
+			pass
+		"player_level":
+			# 玩家等级变化可能需要额外处理，例如解锁新功能或更新UI
+			pass
+		_:
+			# 对于其他直接从GameAttributes读取的属性，无需在Player中特别处理
+			pass
 
 # 玩家受到伤害
 func take_damage(damage_amount):
@@ -51,7 +98,7 @@ func take_damage(damage_amount):
 		return
 		
 	# 检查是否触发濒死护盾
-	if GameAttributes.last_stand_shield_enabled and health <= max_health * GameAttributes.last_stand_shield_threshold:
+	if GameAttributes.last_stand_shield_enabled and GameAttributes.health <= GameAttributes.max_health * GameAttributes.last_stand_shield_threshold:
 		print("触发濒死护盾，无敌", GameAttributes.last_stand_shield_duration, "秒")
 		var inv_timer = get_node_or_null("InvincibilityTimer")
 		if inv_timer:
@@ -62,11 +109,13 @@ func take_damage(damage_amount):
 		
 	# 应用防御属性减少伤害
 	var actual_damage = damage_amount * (1.0 - GameAttributes.defense)
-	health -= actual_damage
+	# health -= actual_damage # 直接修改health，不再通过GameAttributes
+	var new_health = max(0, GameAttributes.health - actual_damage)
+	GameAttributes.update_attribute("health", new_health) # 通过GameAttributes更新生命值
 	emit_signal("player_damaged", actual_damage)
 	
-	if health <= 0:
-		health = 0
+	if GameAttributes.health <= 0:
+		GameAttributes.update_attribute("health", 0)
 		die()
 	
 	# 播放受伤视觉效果
@@ -104,6 +153,7 @@ func show_dodge_effect():
 
 # 玩家死亡
 func die():
+	print("Player: die() called - Player has died!")
 	is_alive = false
 	# 死亡视觉效果
 	$AnimatedSprite2D.modulate = Color(0.5, 0.5, 0.5) # 变灰表示死亡
@@ -114,7 +164,17 @@ func die():
 
 # 恢复生命值
 func heal(amount):
-	health = min(health + amount, max_health)
+	if not is_alive:
+		return
+	
+	var new_health = min(GameAttributes.health + amount, GameAttributes.max_health)
+	GameAttributes.update_attribute("health", new_health) # 通过GameAttributes更新生命值
+	print("恢复生命值: ", amount, " 当前生命值: ", new_health)
+	
+	# UIManager会监听GameAttributes的信号进行更新，这里不再需要直接调用
+	# var ui_manager = get_node_or_null("/root/Main/HUD")
+	# if ui_manager and ui_manager.has_method("update_health_bar"):
+	#	ui_manager.update_health_bar(health, max_health)
 	
 # 处理输入和移动
 func _process(_delta):
@@ -145,6 +205,19 @@ func shoot():
 	if not can_shoot or not is_alive:
 		return
 	
+	# 获取目标方向
+	var target_directions = []
+	if GameAttributes.dual_target_enabled:
+		target_directions = find_dual_target_directions()
+	else:
+		var single_direction = find_nearest_enemy_direction()
+		if single_direction != null:
+			target_directions.append(single_direction)
+	
+	# 如果没有找到目标方向，则不射击
+	if target_directions.is_empty(): # 修正：使用 is_empty() 方法
+		return
+
 	# 决定发射多少发子弹
 	var shot_count = 1
 	var random_value = randf()
@@ -163,13 +236,6 @@ func shoot():
 		if has_node("/root/QuestSystem"):
 			var quest_system = get_node("/root/QuestSystem")
 			quest_system.update_quest_progress("combo", 1)
-	
-	# 获取目标方向
-	var target_directions = []
-	if GameAttributes.dual_target_enabled:
-		target_directions = find_dual_target_directions()
-	else:
-		target_directions = [find_nearest_enemy_direction()]
 	
 	# 发射子弹
 	for i in range(shot_count):
@@ -263,20 +329,28 @@ func find_nearest_enemy_direction():
 	
 	# 如果没有敌人，随机方向
 	if enemies.size() == 0:
-		return Vector2(randf_range(-1, 1), randf_range(-1, 1)).normalized()
+		return null # 如果没有敌人，返回null，表示不射击
 	
 	# 应用攻击范围天赋 - 只考虑范围内的敌人
 	var max_attack_range = 300.0 * GameAttributes.attack_range # 基础范围300像素
 	
-	# 寻找最近的敌人（在攻击范围内）
+	# 寻找最近的敌人（在攻击范围内且在屏幕内）
 	# 优先考虑精英敌人（如果有精英优先率天赋）
 	var elite_enemies = []
 	var normal_enemies = []
 	
+	# 获取屏幕尺寸
+	var screen_size = get_viewport_rect().size
+	
 	for enemy in enemies:
 		var distance = global_position.distance_to(enemy.global_position)
-		# 只考虑在攻击范围内的敌人
-		if distance <= max_attack_range:
+		# 检查敌人是否在屏幕内
+		var enemy_pos = enemy.global_position
+		var is_on_screen = (enemy_pos.x >= 0 and enemy_pos.x <= screen_size.x and
+							enemy_pos.y >= 0 and enemy_pos.y <= screen_size.y)
+		
+		# 只考虑在攻击范围内且在屏幕内的敌人
+		if distance <= max_attack_range and is_on_screen:
 			if enemy.is_in_group("boss") or enemy.scale.x >= 1.3 or enemy.scale.y >= 1.3:
 				elite_enemies.append({"enemy": enemy, "distance": distance})
 			else:
@@ -300,8 +374,7 @@ func find_nearest_enemy_direction():
 	if nearest_enemy:
 		return (nearest_enemy.global_position - global_position).normalized()
 	else:
-		# 如果没有在范围内的敌人，随机方向
-		return Vector2(randf_range(-1, 1), randf_range(-1, 1)).normalized()
+		return null # 如果没有在攻击范围内且在屏幕内的敌人，返回null，表示不射击
 
 # 寻找双目标方向
 func find_dual_target_directions():
@@ -310,11 +383,13 @@ func find_dual_target_directions():
 	
 	# 如果没有敌人，返回两个随机方向
 	if enemies.size() == 0:
-		return [Vector2(randf_range(-1, 1), randf_range(-1, 1)).normalized(),
-				Vector2(randf_range(-1, 1), randf_range(-1, 1)).normalized()]
+		return []
 	
 	# 应用攻击范围天赋
 	var max_attack_range = 300.0 * GameAttributes.attack_range
+	
+	# 获取屏幕尺寸
+	var screen_size = get_viewport_rect().size
 	
 	# 分类敌人
 	var elite_enemies = []
@@ -322,7 +397,13 @@ func find_dual_target_directions():
 	
 	for enemy in enemies:
 		var distance = global_position.distance_to(enemy.global_position)
-		if distance <= max_attack_range:
+		# 检查敌人是否在屏幕内
+		var enemy_pos = enemy.global_position
+		var is_on_screen = (enemy_pos.x >= 0 and enemy_pos.x <= screen_size.x and
+							enemy_pos.y >= 0 and enemy_pos.y <= screen_size.y)
+		
+		# 只考虑在攻击范围内且在屏幕内的敌人
+		if distance <= max_attack_range and is_on_screen:
 			if enemy.is_in_group("boss") or enemy.scale.x >= 1.3 or enemy.scale.y >= 1.3:
 				elite_enemies.append({"enemy": enemy, "distance": distance})
 			else:
@@ -381,10 +462,11 @@ func restore_health(amount):
 	if not is_alive:
 		return
 	
-	health = min(health + amount, max_health)
-	print("恢复生命值: ", amount, " 当前生命值: ", health)
+	var new_health = min(GameAttributes.health + amount, GameAttributes.max_health)
+	GameAttributes.update_attribute("health", new_health) # 通过GameAttributes更新生命值
+	print("恢复生命值: ", amount, " 当前生命值: ", new_health)
 	
-	# 更新UI
-	var ui_manager = get_node_or_null("/root/Main/UI")
-	if ui_manager and ui_manager.has_method("update_health_bar"):
-		ui_manager.update_health_bar(health, max_health)
+	# UIManager会监听GameAttributes的信号进行更新，这里不再需要直接调用
+	# var ui_manager = get_node_or_null("/root/Main/HUD")
+	# if ui_manager and ui_manager.has_method("update_health_bar"):
+	#	ui_manager.update_health_bar(health, max_health)

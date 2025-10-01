@@ -68,6 +68,7 @@ func _ready():
 	
 	# 获取屏幕尺寸
 	screen_size = get_viewport_rect().size
+	print("敌人生成器屏幕尺寸: ", screen_size)
 	
 	# 创建定时器
 	spawn_timer = Timer.new()
@@ -91,8 +92,8 @@ func _ready():
 	else:
 		level_manager = null
 		
-	# 默认启动敌人生成
-	start()
+	# 默认启动敌人生成 (此行已移除，由LevelManager控制)
+	# start()
 
 func start():
 	spawn_active = true
@@ -110,10 +111,19 @@ func start_level():
 	spawn_active = true
 	print("敌人生成器：开始关卡 " + str(current_level))
 	
-	# 确保定时器启动
-	if spawn_timer:
-		spawn_timer.start()
-		
+	# 确保定时器存在并启动
+	if not spawn_timer:
+		spawn_timer = Timer.new()
+		spawn_timer.wait_time = spawn_interval
+		spawn_timer.connect("timeout", Callable(self, "_on_spawn_timer_timeout"))
+		add_child(spawn_timer)
+	
+	# 强制重启定时器
+	spawn_timer.stop()
+	spawn_timer.wait_time = spawn_interval
+	spawn_timer.start()
+	print("✅ 定时器已启动，间隔: ", spawn_interval)
+	
 	start_wave()
 
 # 开始新的一波敌人
@@ -224,6 +234,8 @@ func spawn_boss():
 	enemy.connect("enemy_died", Callable(get_node("/root/Main/GameManager"), "add_score"))
 	if level_manager:
 		enemy.connect("enemy_died", Callable(level_manager, "update_progress"))
+		# 新增：敌人死亡时，玩家获得经验
+		enemy.connect("enemy_died", Callable(level_manager, "add_experience").bind(enemy.score_value))
 	
 	# 将BOSS添加到场景
 	add_child(enemy)
@@ -231,10 +243,6 @@ func spawn_boss():
 func _on_spawn_timer_timeout():
 	if not spawn_active:
 		return
-	
-	print("尝试生成敌人: 当前波次 " + str(wave_count) + ", 已生成 " + str(current_wave_enemies) + "/" + str(enemies_per_wave))
-	
-	# 检查是否达到当前波次的敌人数量
 	if current_wave_enemies >= enemies_per_wave:
 		spawn_timer.stop()
 		
@@ -242,12 +250,15 @@ func _on_spawn_timer_timeout():
 		if wave_count < max_waves:
 			wave_timer.wait_time = 3.0 # 波次间隔
 			wave_timer.start()
-		return
-	
+		else:
+			return
 	spawn_enemy()
 	current_wave_enemies += 1
 
 func _on_wave_timer_timeout():
+	# 重启生成定时器
+	if spawn_timer:
+		spawn_timer.start()
 	# 开始下一波敌人
 	start_wave()
 
@@ -264,8 +275,6 @@ func spawn_enemy(is_boss = false):
 	
 	if not player.is_alive:
 		return
-	
-	print("生成敌人：" + ("BOSS" if is_boss else "普通"))
 	
 	# 创建敌人实例
 	var enemy = enemy_scene.instantiate()
@@ -324,6 +333,8 @@ func spawn_enemy(is_boss = false):
 	enemy.connect("enemy_died", Callable(get_node("/root/Main/GameManager"), "add_score"))
 	if level_manager:
 		enemy.connect("enemy_died", Callable(level_manager, "update_progress"))
+		# 新增：敌人死亡时，玩家获得经验
+		enemy.connect("enemy_died", Callable(level_manager, "add_experience").bind(enemy.score_value))
 	
 	# 随机生成敌人位置（屏幕外围）
 	var spawn_position = Vector2.ZERO
@@ -346,8 +357,10 @@ func spawn_enemy(is_boss = false):
 	# 设置敌人位置
 	enemy.global_position = spawn_position
 	
-	# 将敌人添加到场景
-	add_child(enemy)
+	# 将敌人添加到场景（使用全局位置添加到Main节点）
+	enemy.position = spawn_position # 先设置本地位置
+	get_parent().add_child(enemy) # 添加到Main节点
+	enemy.global_position = spawn_position # 确保全局位置正确
 	
 	return enemy
 

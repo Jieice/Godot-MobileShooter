@@ -72,12 +72,9 @@ func _on_body_entered(body):
 	if body.is_in_group("enemy"):
 		var final_damage = damage
 		var is_boss = body.is_in_group("boss") or (body.scale.x >= 1.3 or body.scale.y >= 1.3)
-		var is_elite = is_boss or (body.scale.x >= 1.3 or body.scale.y >= 1.3)
+		var _is_elite = is_boss or (body.scale.x >= 1.3 or body.scale.y >= 1.3)
 		
 		# 应用精英伤害MOD效果
-		if is_elite and GameAttributes.elite_damage_bonus > 0:
-			final_damage *= (1.0 + GameAttributes.elite_damage_bonus)
-			print("精英伤害加成: +", GameAttributes.elite_damage_bonus * 100, "%")
 		
 		# 更新任务进度 - 击杀敌人
 		if has_node("/root/QuestSystem"):
@@ -134,9 +131,6 @@ func _on_body_entered(body):
 		# 检查穿透效果
 		penetration_count += 1
 		
-		# 检查连锁反应MOD触发条件
-		if GameAttributes.chain_reaction_enabled and penetration_count >= 3:
-			trigger_chain_reaction(body.global_position)
 		
 		if penetration_count > max_penetration:
 			# 子弹击中敌人后销毁
@@ -279,64 +273,3 @@ func show_fission_text(pos):
 	tween.tween_property(fission_label, "global_position", fission_label.global_position + Vector2(0, -20), 0.8)
 	tween.parallel().tween_property(fission_label, "modulate", Color(0.0, 0.7, 1.0, 0), 0.8)
 	tween.tween_callback(fission_label.queue_free)
-
-# 触发连锁反应
-func trigger_chain_reaction(pos):
-	print("触发连锁反应! 位置: ", pos)
-	
-	# 创建爆炸效果
-	create_explosion_effect(pos)
-	
-	# 对范围内的敌人造成伤害
-	damage_enemies_in_range(pos, 1.0, 100) # 1.0半径，100伤害
-	
-	# 显示连锁反应文字
-	show_chain_reaction_text(pos)
-
-# 创建爆炸效果
-func create_explosion_effect(pos):
-	# 创建爆炸粒子效果（简化版）
-	var explosion = Sprite2D.new()
-	explosion.texture = load("res://assets/sprites/blood_scratch.svg") # 使用现有纹理
-	explosion.scale = Vector2(2.0, 2.0)
-	explosion.modulate = Color(1.0, 0.5, 0.0, 0.8) # 橙色
-	explosion.global_position = pos
-	
-	# 添加到场景
-	get_tree().get_root().add_child(explosion)
-	
-	# 动画效果
-	var tween = get_tree().create_tween()
-	tween.tween_property(explosion, "scale", Vector2(4.0, 4.0), 0.3)
-	tween.parallel().tween_property(explosion, "modulate:a", 0.0, 0.3)
-	tween.tween_callback(explosion.queue_free)
-
-# 对范围内的敌人造成伤害
-func damage_enemies_in_range(pos, radius, damage_amount):
-	var enemies = get_tree().get_nodes_in_group("enemy")
-	
-	for enemy in enemies:
-		if enemy.is_alive:
-			var distance = pos.distance_to(enemy.global_position)
-			if distance <= radius * 100: # 转换为像素单位
-				enemy.take_damage(damage_amount)
-				print("连锁反应伤害: ", damage_amount, " 对敌人: ", enemy.name)
-
-# 显示连锁反应文字
-func show_chain_reaction_text(pos):
-	var chain_label = Label.new()
-	chain_label.text = "连锁反应!"
-	chain_label.add_theme_color_override("font_color", Color(1.0, 0.5, 0.0)) # 橙色
-	chain_label.add_theme_font_size_override("font_size", 18)
-	chain_label.add_theme_constant_override("outline_size", 2)
-	chain_label.add_theme_color_override("font_outline_color", Color(1, 1, 1)) # 白色描边
-	chain_label.position = pos + Vector2(0, -60)
-	
-	# 添加到场景
-	get_tree().get_root().add_child(chain_label)
-	
-	# 动画效果
-	var tween = get_tree().create_tween()
-	tween.tween_property(chain_label, "position", chain_label.position + Vector2(0, -40), 1.0)
-	tween.parallel().tween_property(chain_label, "modulate:a", 0.0, 1.0)
-	tween.tween_callback(chain_label.queue_free)

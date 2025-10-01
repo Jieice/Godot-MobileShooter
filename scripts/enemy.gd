@@ -211,18 +211,13 @@ func update_health_bar():
 # 敌人死亡
 func die():
 	is_alive = false
-	emit_signal("enemy_died", score_value)
+	emit_signal("enemy_died")
 	
 	# 检查击杀回能概率天赋
 	if randf() <= GameAttributes.kill_energy_chance:
 		# 触发击杀回能效果
 		trigger_kill_energy()
 	
-	# 触发特效MOD效果
-	trigger_special_mod_effects()
-	
-	# 尝试掉落MOD
-	try_drop_mod()
 	
 	# 播放死亡动画
 	$Sprite2D.modulate.a = 0.7 # 降低透明度
@@ -267,106 +262,6 @@ func show_kill_energy_text():
 	tween.tween_property(energy_label, "modulate:a", 0.0, 1.0)
 	tween.tween_callback(energy_label.queue_free)
 
-# 触发特效MOD效果
-func trigger_special_mod_effects():
-	# 检查生命虹吸MOD
-	if GameAttributes.life_siphon_enabled:
-		trigger_life_siphon()
-	
-	# 检查连锁反应MOD（需要穿透3个敌人）
-	if GameAttributes.chain_reaction_enabled:
-		check_chain_reaction()
-
-# 触发生命虹吸效果
-func trigger_life_siphon():
-	var player = get_node_or_null("/root/Main/Player")
-	if player and player.has_method("restore_health"):
-		# 恢复5%最大生命值
-		var heal_amount = int(player.max_health * 0.05)
-		player.restore_health(heal_amount)
-		print("生命虹吸! 恢复生命值: ", heal_amount)
-		
-		# 显示虹吸效果
-		show_life_siphon_text()
-
-# 显示生命虹吸文字效果
-func show_life_siphon_text():
-	var siphon_label = Label.new()
-	siphon_label.text = "生命虹吸!"
-	siphon_label.add_theme_color_override("font_color", Color(1.0, 0.0, 1.0)) # 紫色
-	siphon_label.add_theme_font_size_override("font_size", 14)
-	siphon_label.position = global_position + Vector2(0, -40)
-	
-	# 添加到场景
-	get_tree().current_scene.add_child(siphon_label)
-	
-	# 动画效果
-	var tween = create_tween()
-	tween.tween_property(siphon_label, "position", siphon_label.position + Vector2(0, -30), 1.0)
-	tween.tween_property(siphon_label, "modulate:a", 0.0, 1.0)
-	tween.tween_callback(siphon_label.queue_free)
-
-# 检查连锁反应条件
-func check_chain_reaction():
-	# 这里需要检查子弹是否穿透了3个敌人
-	# 这个逻辑应该在bullet.gd中实现，这里只是占位符
-	print("检查连锁反应条件...")
-
-# 尝试掉落MOD
-func try_drop_mod():
-	# 获取MOD掉落系统
-	var mod_drop_system = get_node_or_null("/root/ModDropSystem")
-	if not mod_drop_system:
-		return
-	
-	# 判断敌人类型
-	var is_boss = is_in_group("boss") or scale.x >= 1.3 or scale.y >= 1.3
-	var is_elite = scale.x >= 1.2 or scale.y >= 1.2
-	
-	# 计算掉落概率
-	var drop_chance = mod_drop_system.calculate_drop_chance(is_boss, is_elite)
-	
-	# 随机决定是否掉落
-	if randf() <= drop_chance:
-		# 选择掉落的MOD
-		var dropped_mod = mod_drop_system.select_drop_mod(is_boss, is_elite)
-		if dropped_mod:
-			# 显示掉落效果
-			show_mod_drop_effect(dropped_mod)
-			# 添加到玩家背包
-			ModSystem.add_mod_to_inventory(dropped_mod)
-
-# 显示MOD掉落效果
-func show_mod_drop_effect(mod_id: String):
-	var mod_info = ModSystem.get_mod_info(mod_id)
-	if not mod_info:
-		return
-	
-	# 创建掉落文字效果
-	var drop_label = Label.new()
-	drop_label.text = "获得MOD: " + mod_info.name
-	drop_label.add_theme_font_size_override("font_size", 14)
-	drop_label.position = global_position + Vector2(0, -50)
-	
-	# 根据品质设置颜色
-	match mod_info.rarity:
-		ModSystem.ModRarity.COMMON:
-			drop_label.add_theme_color_override("font_color", Color.WHITE)
-		ModSystem.ModRarity.RARE:
-			drop_label.add_theme_color_override("font_color", Color.CYAN)
-		ModSystem.ModRarity.EPIC:
-			drop_label.add_theme_color_override("font_color", Color.MAGENTA)
-		ModSystem.ModRarity.LEGENDARY:
-			drop_label.add_theme_color_override("font_color", Color.GOLD)
-	
-	# 添加到场景
-	get_tree().current_scene.add_child(drop_label)
-	
-	# 动画效果
-	var tween = create_tween()
-	tween.tween_property(drop_label, "position", drop_label.position + Vector2(0, -80), 2.0)
-	tween.parallel().tween_property(drop_label, "modulate:a", 0.0, 2.0)
-	tween.tween_callback(drop_label.queue_free)
 
 # BOSS特殊效果设置
 func setup_boss_effects():

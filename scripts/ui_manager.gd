@@ -7,27 +7,55 @@ var _player: CharacterBody2D
 var _game_manager: Node
 
 func _ready():
+	print("UIManager: _ready() called")
+	add_to_group("ui_manager")
 	print("UI管理器初始化开始")
 	
 	# 获取玩家引用
 	_player = get_node("../Player")
 	if not _player:
-		print("警告: 无法找到Player节点")
+		print("UIManager: 警告: 无法找到Player节点")
 		return
 	
 	# 获取游戏管理器引用
 	_game_manager = get_node("../GameManager")
 	if not _game_manager:
-		print("警告: 无法找到GameManager节点")
+		print("UIManager: 警告: 无法找到GameManager节点")
 		return
 	
 	# 连接信号
 	_connect_signals()
 	
 	# 初始化UI
-	_initialize_ui()
+	# _initialize_ui() # UI初始化现在由各个Panel自行管理，UIManager不再负责全部初始化
 	
-	print("UI管理器初始化完成")
+	# 启动定期UI更新
+	_start_ui_update_timer()
+	
+	# 确保GameOverPanel在启动时隐藏
+	var game_over_panel = get_node_or_null("GameOverPanel")
+	if game_over_panel:
+		game_over_panel.visible = false
+		print("UIManager: GameOverPanel set to visible = false in _ready()")
+	else:
+		print("UIManager: GameOverPanel not found in _ready()")
+	
+	# 检查UI节点是否存在（只在初始化时打印一次）
+	print("UIManager: UI管理器初始化完成")
+	print("UIManager:   - InGameLevelInfo/InGameLevel: ", has_node("InGameLevelInfo/InGameLevel"))
+	print("UIManager:   - InGameLevelInfo/ExpLabel: ", has_node("InGameLevelInfo/ExpLabel"))
+	print("UIManager:   - InGameLevelInfo/ExpBar: ", has_node("InGameLevelInfo/ExpBar"))
+	print("UIManager:   - PlayerLevel: ", has_node("PlayerLevel"))
+	print("UIManager:   - ScoreLabel: ", has_node("ScoreLabel"))
+	# 初始化钻石显示
+	_on_diamonds_changed(GameAttributes.diamonds)
+	# 初始化金币显示
+	_on_score_updated(_game_manager.score)
+	
+	# 初始UI更新
+	update_player_level()
+	update_exp_display()
+	update_level_display()
 	emit_signal("ui_ready")
 
 func _connect_signals():
@@ -38,16 +66,14 @@ func _connect_signals():
 	# 连接游戏管理器信号
 	if _game_manager.has_signal("score_updated"):
 		_game_manager.connect("score_updated", Callable(self, "_on_score_updated"))
+		if _game_manager.has_signal("game_over_triggered"):
+			_game_manager.connect("game_over_triggered", Callable(self, "_on_game_over_triggered"))
+		if _game_manager.has_signal("game_restarted"):
+			_game_manager.connect("game_restarted", Callable(self, "_on_game_restarted"))
 	
-	# 连接存档系统信号
-	var save_system = get_node("/root/SaveSystem")
-	if save_system:
-		save_system.connect("save_completed", Callable(self, "_on_save_completed"))
-		save_system.connect("load_completed", Callable(self, "_on_load_completed"))
-		save_system.connect("save_failed", Callable(self, "_on_save_failed"))
-		save_system.connect("load_failed", Callable(self, "_on_load_failed"))
-		save_system.connect("delete_completed", Callable(self, "_on_delete_completed"))
-		save_system.connect("delete_failed", Callable(self, "_on_delete_failed"))
+	# 连接游戏属性信号
+	if GameAttributes.has_signal("diamonds_changed"):
+		GameAttributes.connect("diamonds_changed", Callable(self, "_on_diamonds_changed"))
 	
 	# 连接任务系统信号
 	var quest_system = get_node("/root/QuestSystem")
@@ -56,6 +82,23 @@ func _connect_signals():
 		quest_system.connect("achievement_unlocked", Callable(self, "_on_achievement_unlocked"))
 		quest_system.connect("daily_quests_reset", Callable(self, "_on_daily_quests_reset"))
 
+	# 连接GameAttributes信号
+	if GameAttributes.has_signal("attributes_changed"):
+		GameAttributes.connect("attributes_changed", Callable(self, "_on_game_attribute_changed"))
+
+	# 连接LevelManager信号
+	var level_manager = get_node("/root/LevelManager")
+	if level_manager:
+		if level_manager.has_signal("player_level_up"):
+			level_manager.connect("player_level_up", Callable(self, "_on_player_level_up"))
+		if level_manager.has_signal("talent_points_changed"):
+			level_manager.connect("talent_points_changed", Callable(self, "_on_talent_points_changed"))
+		if level_manager.has_signal("level_started"):
+			level_manager.connect("level_started", Callable(self, "_on_level_started"))
+		if level_manager.has_signal("level_progress_updated"):
+			level_manager.connect("level_progress_updated", Callable(self, "_on_level_progress_updated"))
+
+
 func _initialize_ui():
 	# 初始化UI
 	var gm = get_node("../GameManager")
@@ -63,7 +106,7 @@ func _initialize_ui():
 		$ScoreLabel.text = "金币: " + str(gm.score)
 	else:
 		$ScoreLabel.text = "金币: 0"
-		$ScoreLabel.add_theme_font_size_override("font_size", 24)
+	$ScoreLabel.add_theme_font_size_override("font_size", 24)
 	
 	if has_node("GameOverPanel"):
 		$GameOverPanel.visible = false
@@ -74,15 +117,20 @@ func _initialize_ui():
 		$PlayerName.text = "勇者"
 	update_player_level()
 	
-	# 初始化经验值UI
+	# 初始化经验值UI (直接从LevelManager获取数据)
 	if has_node("LevelUI/LevelPanel/ExpBar"):
-		update_exp_bar(GameAttributes.player_experience, GameAttributes.experience_required)
+		var level_manager = get_node("/root/LevelManager")
+		if level_manager:
+			update_exp_bar(level_manager.player_exp, level_manager.exp_to_next_level)
+		else:
+			print("UIManager: 警告: _initialize_ui 无法找到LevelManager来初始化经验条")
 	
-	# 初始化MOD强化页面
-	initialize_mod_enhancement_page()
 	
-	# 初始化设置页面
-	initialize_settings_page()
+	# 初始化设置页面 (之前已经移动到 settings_panel.gd，这里不再初始化)
+	# initialize_settings_page()
+	
+	# 初始化天赋页面 (之前已经移动到 talent_panel.gd，这里不再初始化)
+	initialize_talent_page()
 
 # 更新血条
 func update_health_bar(current_health: float, max_health: float):
@@ -94,9 +142,17 @@ func update_health_bar(current_health: float, max_health: float):
 
 # 更新玩家等级显示
 func update_player_level():
-	if has_node("PlayerLevel"):
-		var level_text = "等级: " + str(GameAttributes.player_level) + "/30"
+	print("UIManager: update_player_level() called")
+	var level_manager = get_node("/root/LevelManager")
+	if has_node("PlayerLevel") and level_manager:
+		var level_text = "等级: " + str(level_manager.player_level) + "/" + str(level_manager.player_max_level)
 		$PlayerLevel.text = level_text
+		print("UIManager: 更新玩家等级到: ", level_text, " (从LevelManager获取: ", level_manager.player_level, "/", level_manager.player_max_level, ")")
+		
+		# 同步到GameAttributes (已移除此冗余同步)
+		# GameAttributes.player_level = level_manager.player_level
+	else:
+		print("UIManager: 警告: 无法更新PlayerLevel，节点或LevelManager缺失")
 
 # 更新经验条
 func update_exp_bar(current_exp: int, required_exp: int):
@@ -104,7 +160,7 @@ func update_exp_bar(current_exp: int, required_exp: int):
 		var exp_bar = $LevelUI/LevelPanel/ExpBar
 		exp_bar.max_value = required_exp
 		exp_bar.value = current_exp
-		
+	
 		# 更新经验值文本
 		if has_node("LevelUI/LevelPanel/ExpLabel"):
 			$LevelUI/LevelPanel/ExpLabel.text = str(current_exp) + "/" + str(required_exp)
@@ -116,327 +172,89 @@ func update_exp_bar(current_exp: int, required_exp: int):
 		else:
 			exp_bar.color = Color(0.2, 0.6, 1.0, 1) # 默认蓝色
 
-# 更新玩家属性显示
-func update_player_stats():
-	var player = get_node("../Player")
-	if not player:
-		return
-	
-	# 更新属性面板
-	if has_node("BottomPanel/属性"):
-		var stats_container = $BottomPanel / 属性
-		
-		# 更新防御穿透
-		if stats_container.has_node("PenetrationLabel"):
-			stats_container.get_node("PenetrationLabel").text = "防御穿透: " + str(int(GameAttributes.penetration * 100)) + "%"
-		else:
-			# 如果标签不存在，创建一个新的
-			var penetration_label = Label.new()
-			penetration_label.name = "PenetrationLabel"
-			penetration_label.text = "防御穿透: " + str(int(GameAttributes.penetration * 100)) + "%"
-			stats_container.add_child(penetration_label)
-		
-		# 更新穿透数量
-		if stats_container.has_node("PenetrationCountLabel"):
-			stats_container.get_node("PenetrationCountLabel").text = "穿透数量: " + str(GameAttributes.penetration_count)
-		else:
-			# 如果标签不存在，创建一个新的
-			var penetration_count_label = Label.new()
-			penetration_count_label.name = "PenetrationCountLabel"
-			penetration_count_label.text = "穿透数量: " + str(GameAttributes.penetration_count)
-			stats_container.add_child(penetration_count_label)
-	
-	# 更新生命值显示
-	if has_node("BottomPanel/属性/HealthLabel"):
-		$BottomPanel / 属性 / HealthLabel.text = "生命值: " + str(player.health) + "/" + str(player.max_health)
-	else:
-		# 创建生命值标签
-		var health_label = Label.new()
-		health_label.name = "HealthLabel"
-		if player:
-			health_label.text = "生命值: " + str(player.health) + "/" + str(player.max_health)
-		else:
-			health_label.text = "生命值: 0/0"
-		$BottomPanel / 属性.add_child(health_label)
-		
-	# 更新攻击速度显示
-	if has_node("BottomPanel/属性/AttackSpeedLabel"):
-		$BottomPanel / 属性 / AttackSpeedLabel.text = "攻击速度: " + str(snapped(GameAttributes.attack_speed, 0.1)) + "x"
-	else:
-		# 创建攻击速度标签
-		var attack_speed_label = Label.new()
-		attack_speed_label.name = "AttackSpeedLabel"
-		attack_speed_label.text = "攻击速度: " + str(snapped(GameAttributes.attack_speed, 0.1)) + "x"
-		$BottomPanel / 属性.add_child(attack_speed_label)
-	
-	# 更新防御显示
-	if has_node("BottomPanel/属性/DefenseLabel"):
-		$BottomPanel / 属性 / DefenseLabel.text = "防御: " + str(snappedf(GameAttributes.defense * 100, 0.1)) + "%"
-	else:
-		# 创建防御标签
-		var defense_label = Label.new()
-		defense_label.name = "DefenseLabel"
-		defense_label.text = "防御: " + str(snappedf(GameAttributes.defense * 100, 0.1)) + "%"
-		$BottomPanel / 属性.add_child(defense_label)
-		
-	# 更新闪避率显示
-	if has_node("BottomPanel/属性/DodgeChanceLabel"):
-		$BottomPanel / 属性 / DodgeChanceLabel.text = "闪避率: " + str(snappedf(GameAttributes.dodge_chance * 100, 0.1)) + "%"
-	else:
-		# 创建闪避率标签
-		var dodge_label = Label.new()
-		dodge_label.name = "DodgeChanceLabel"
-		dodge_label.text = "闪避率: " + str(snappedf(GameAttributes.dodge_chance * 100, 0.1)) + "%"
-		$BottomPanel / 属性.add_child(dodge_label)
+# 初始化天赋页面
+func initialize_talent_page():
+	if has_node("BottomPanel/天赋"):
+		var talent_panel = get_node("BottomPanel/天赋")
+		talent_panel.visible = false # 默认隐藏
 
-# 初始化MOD强化页面
-func initialize_mod_enhancement_page():
-	print("初始化MOD强化页面")
-	
-	# 更新MOD插槽显示
-	update_mod_slots()
-	
-	# 更新MOD库存显示
-	update_mod_inventory()
-	
-	# 更新容量显示
-	update_capacity_display()
 
-# 更新MOD插槽显示
-func update_mod_slots():
-	if not has_node("BottomPanel/TabContainer/MOD强化/MODSlotsContainer"):
-		return
-		
-	var slots_container = $BottomPanel/TabContainer/MOD强化/MODSlotsContainer
+# 处理游戏结束信号
+func _on_game_over_triggered(final_score: int):
+	print("UI Manager 收到游戏结束信号，最终得分: ", final_score)
+	var game_over_panel = get_node_or_null("GameOverPanel")
+	if game_over_panel:
+		game_over_panel.visible = true
+		var final_score_label = game_over_panel.get_node_or_null("FinalScoreLabel")
+		if final_score_label:
+			final_score_label.text = "最终得分: " + str(final_score)
+			
+# 处理游戏重启信号
+func _on_game_restarted():
+	print("UI Manager 收到游戏重启信号")
+	var game_over_panel = get_node_or_null("GameOverPanel")
+	if game_over_panel:
+		game_over_panel.visible = false
 	
-	# 清除现有插槽
-	for child in slots_container.get_children():
-		child.queue_free()
-	
-	# 创建MOD插槽
-	for i in range(ModSystem.player_core_module.max_mods):
-		var slot_bg = ColorRect.new()
-		slot_bg.name = "ModSlot" + str(i)
-		slot_bg.custom_minimum_size = Vector2(80, 80)
-		slot_bg.color = Color(0.3, 0.3, 0.3, 0.8)
-		slot_bg.border_width = 2
-		slot_bg.border_color = Color(0.6, 0.6, 0.6)
-		slots_container.add_child(slot_bg)
-		
-		# 添加插槽标签
-		var slot_label = Label.new()
-		slot_label.text = "插槽 " + str(i + 1)
-		slot_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		slot_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		slot_label.add_theme_font_size_override("font_size", 12)
-		slot_bg.add_child(slot_label)
-		
-		# 连接点击事件
-		slot_bg.connect("gui_input", Callable(self, "_on_mod_slot_clicked").bind(i))
-		
-		# 显示已装备的MOD
-		if i < ModSystem.player_core_module.equipped_mods.size() and ModSystem.player_core_module.equipped_mods[i] != "":
-			var mod_id = ModSystem.player_core_module.equipped_mods[i]
-			var mod_info = ModSystem.get_mod_info(mod_id)
-			if mod_info:
-				slot_label.text = mod_info.name
-			else:
-				slot_label.text = "未知MOD"
-		else:
-			slot_label.text = "空"
+	# 在游戏重启时更新钻石显示
+	_on_diamonds_changed(GameAttributes.diamonds)
 
-# 更新MOD库存显示
-func update_mod_inventory():
-	if not has_node("BottomPanel/TabContainer/MOD强化/ModInventoryContainer"):
-		return
-		
-	var inventory_container = $BottomPanel/TabContainer/MOD强化/ModInventoryContainer
-	
-	# 清除现有库存
-	for child in inventory_container.get_children():
-		child.queue_free()
-	
-	# 显示所有MOD
-	for mod_id in ModSystem.mod_inventory:
-		var mod_info = ModSystem.get_mod_info(mod_id)
-		if mod_info:
-			var mod_button = Button.new()
-			mod_button.text = mod_info.name
-			mod_button.custom_minimum_size = Vector2(200, 40)
-			mod_button.connect("pressed", Callable(self, "_on_mod_button_pressed").bind(mod_id))
-			inventory_container.add_child(mod_button)
-
-# 更新容量显示
-func update_capacity_display():
-	if not has_node("BottomPanel/TabContainer/MOD强化/CapacityLabel"):
-		return
-	
-	var used_capacity = ModSystem.calculate_used_capacity()
-	var max_capacity = ModSystem.player_core_module.max_capacity
-	$BottomPanel/TabContainer/MOD强化/CapacityLabel.text = "容量: " + str(used_capacity) + "/" + str(max_capacity)
-
-# MOD插槽点击处理
-func _on_mod_slot_clicked(slot_index: int, event: InputEvent):
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		print("点击MOD插槽: ", slot_index)
-		
-		# 如果插槽有MOD，卸下它
-		if slot_index < ModSystem.player_core_module.equipped_mods.size() and ModSystem.player_core_module.equipped_mods[slot_index] != "":
-			var mod_id = ModSystem.player_core_module.equipped_mods[slot_index]
-			ModSystem.unequip_mod(slot_index)
-			print("卸下MOD: ", mod_id, " 从插槽 ", slot_index)
-		else:
-			print("插槽 ", slot_index, " 为空")
-
-# MOD按钮点击处理
-func _on_mod_button_pressed(mod_id: String):
-	print("点击MOD按钮: ", mod_id)
-	
-	# 尝试装备MOD
-	var success = false
-	for i in range(ModSystem.player_core_module.max_mods):
-		if ModSystem.player_core_module.equipped_mods[i] == "":
-			if ModSystem.equip_mod(mod_id, i):
-				success = true
-				break
-	
-	if not success:
-		print("无法装备MOD: ", mod_id, " - 容量不足或插槽已满")
-
-# MOD装备信号处理
-func _on_mod_equipped(mod_id, slot_index):
-	print("MOD装备: ", mod_id, " 到插槽 ", slot_index)
-	update_mod_slots()
-	update_capacity_display()
-	update_player_stats()
-
-func _on_mod_unequipped(mod_id, slot_index):
-	print("MOD卸下: ", mod_id, " 从插槽 ", slot_index)
-	update_mod_slots()
-	update_capacity_display()
-	update_player_stats()
-
-# 初始化设置页面
-func initialize_settings_page():
-	print("初始化设置页面")
-	
-	# 连接存档管理按钮
-	var save_button = get_node_or_null("BottomPanel/设置/SaveManagerSection/SaveButtonsContainer/SaveButton")
-	var load_button = get_node_or_null("BottomPanel/设置/SaveManagerSection/SaveButtonsContainer/LoadButton")
-	var delete_button = get_node_or_null("BottomPanel/设置/SaveManagerSection/SaveButtonsContainer/DeleteButton")
-	
-	if save_button and not save_button.is_connected("pressed", Callable(self, "_on_save_button_pressed")):
-		save_button.connect("pressed", Callable(self, "_on_save_button_pressed"))
-	
-	if load_button and not load_button.is_connected("pressed", Callable(self, "_on_load_button_pressed")):
-		load_button.connect("pressed", Callable(self, "_on_load_button_pressed"))
-	
-	if delete_button and not delete_button.is_connected("pressed", Callable(self, "_on_delete_button_pressed")):
-		delete_button.connect("pressed", Callable(self, "_on_delete_button_pressed"))
-	
-	# 更新存档信息显示
-	update_save_info_display()
-	
-	# 创建游戏设置区域（如果不存在）
-	if not has_node("BottomPanel/设置/GameSettingsSection"):
-		create_game_settings_section($BottomPanel / 设置)
-
-# 创建游戏设置区域
-func create_game_settings_section(parent):
-	var game_settings_container = VBoxContainer.new()
-	game_settings_container.name = "GameSettingsSection"
-	parent.add_child(game_settings_container)
-	
-	# 分隔线
-	var separator = HSeparator.new()
-	separator.custom_minimum_size = Vector2(0, 10)
-	game_settings_container.add_child(separator)
-	
-	# 游戏设置标题
-	var settings_title = Label.new()
-	settings_title.text = "游戏设置"
-	settings_title.add_theme_font_size_override("font_size", 18)
-	settings_title.add_theme_color_override("font_color", Color(0.8, 0.8, 1.0))
-	game_settings_container.add_child(settings_title)
-
-# 存档按钮处理函数
-func _on_save_button_pressed():
-	print("用户点击保存按钮")
-	show_operation_dialog("正在保存游戏...", "保存中，请稍候...")
-	SaveSystem.save_game()
-
-func _on_load_button_pressed():
-	print("用户点击加载按钮")
-	show_operation_dialog("正在加载游戏...", "加载中，请稍候...")
-	SaveSystem.load_game()
-
-func _on_delete_button_pressed():
-	print("用户点击删除按钮")
-	show_confirmation_dialog("确认删除", "确定要删除存档吗？此操作不可撤销！", "_on_delete_confirmed")
-
-func _on_delete_confirmed():
-	print("用户确认删除存档")
-	close_confirmation_dialog() # 关闭确认对话框
-	show_operation_dialog("正在删除存档...", "删除中，请稍候...")
-	SaveSystem.delete_save()
+func _on_diamonds_changed(new_diamonds: int):
+	print("UI Manager 收到钻石变化信号: ", new_diamonds)
+	var diamond_label = get_node_or_null("DiamondLabel")
+	if diamond_label:
+		diamond_label.text = "钻石: " + str(new_diamonds)
 
 # 存档系统信号处理
-func _on_save_completed():
-	print("收到保存完成信号")
-	close_operation_dialog()
-	show_success_dialog("保存成功", "游戏已成功保存！")
-	update_save_info_display()
+# func _on_save_completed():
+#	print("收到保存完成信号")
+#	close_operation_dialog()
+#	show_success_dialog("保存成功", "游戏已成功保存！")
+#	update_save_info_display()
 
-func _on_load_completed():
-	print("收到加载完成信号")
-	close_operation_dialog()
-	show_success_dialog("加载成功", "游戏已成功加载！")
-	
-	# 更新所有UI元素
-	update_save_info_display()
-	update_player_stats()
-	update_health_display()
-	
-	# 重新初始化MOD相关UI
-	initialize_mod_equipment_page()
-	update_mod_inventory()
-	update_mod_slots()
+# func _on_load_completed():
+#	print("收到加载完成信号")
+#	close_operation_dialog()
+#	show_success_dialog("加载成功", "游戏已成功加载！")
+#	
+#	# 更新所有UI元素
+#	update_save_info_display()
 
-func _on_save_failed(error_message: String):
-	print("收到保存失败信号: ", error_message)
-	close_operation_dialog()
-	show_error_dialog("保存失败", "保存游戏时发生错误：\n" + error_message)
+# func _on_save_failed(error_message: String):
+#	print("收到保存失败信号: ", error_message)
+#	close_operation_dialog()
+#	show_error_dialog("保存失败", "保存游戏时发生错误：\n" + error_message)
 
-func _on_load_failed(error_message: String):
-	print("收到加载失败信号: ", error_message)
-	close_operation_dialog()
-	show_error_dialog("加载失败", "加载游戏时发生错误：\n" + error_message)
+# func _on_load_failed(error_message: String):
+#	print("收到加载失败信号: ", error_message)
+#	close_operation_dialog()
+#	show_error_dialog("加载失败", "加载游戏时发生错误：\n" + error_message)
 
 # 删除存档完成处理
-func _on_delete_completed():
-	print("收到删除完成信号")
-	close_operation_dialog()
-	show_success_dialog("删除成功", "存档已成功删除！")
-	update_save_info_display()
+# func _on_delete_completed():
+#	print("收到删除完成信号")
+#	close_operation_dialog()
+#	show_success_dialog("删除成功", "存档已成功删除！")
+#	update_save_info_display()
 
-func _on_delete_failed(error_message: String):
-	print("收到删除失败信号: ", error_message)
-	close_operation_dialog()
-	show_error_dialog("删除失败", "删除存档时发生错误：\n" + error_message)
+# func _on_delete_failed(error_message: String):
+#	print("收到删除失败信号: ", error_message)
+#	close_operation_dialog()
+#	show_error_dialog("删除失败", "删除存档时发生错误：\n" + error_message)
 
 # 更新存档信息显示
-func update_save_info_display():
-	var save_info_label = get_node_or_null("BottomPanel/设置/SaveManagerSection/SaveInfoLabel")
-	if not save_info_label:
-		print("存档信息标签不存在，跳过更新")
-		return
-	
-	var save_info = SaveSystem.get_save_info()
-	if not save_info:
-		save_info_label.text = "存档信息: 无存档"
-	else:
-		print("存档信息: ", save_info)
-		save_info_label.text = "存档信息: 等级 " + str(save_info.player_level) + " | 最高关卡 " + str(save_info.highest_level) + " | 总分数 " + str(save_info.total_score)
+# func update_save_info_display():
+#	var save_info_label = get_node_or_null("BottomPanel/设置/SaveManagerSection/SaveInfoLabel")
+#	if not save_info_label:
+#		print("存档信息标签不存在，跳过更新")
+#		return
+#	
+#	var save_info = SaveSystem.get_save_info()
+#	if not save_info:
+#		save_info_label.text = "存档信息: 无存档"
+#	else:
+#		print("存档信息: ", save_info)
+#		save_info_label.text = "存档信息: 等级 " + str(save_info.player_level) + " | 最高关卡 " + str(save_info.highest_level) + " | 总分数 " + str(save_info.total_score)
 
 # 显示操作对话框
 func show_operation_dialog(title: String, message: String):
@@ -634,13 +452,189 @@ func _on_achievement_unlocked(achievement_id: String):
 func _on_daily_quests_reset():
 	print("每日任务已重置")
 
+func _on_player_level_up(level):
+	print("UIManager: _on_player_level_up(", level, ") called")
+	print("UIManager: 玩家升级到 ", level, " 级")
+	
+	# 更新玩家等级显示
+	update_player_level()
+	
+	# 更新经验条显示
+	update_exp_display()
+	
+	# 更新关卡显示（如果需要根据等级变化）
+	update_level_display()
+	
+	# 刷新天赋UI以更新天赋点显示和天赋面板
+	var level_manager = get_node("/root/LevelManager")
+	if level_manager:
+		# 更新天赋点显示
+		if has_node("BottomPanel/天赋/TalentPointsLabel"):
+			$BottomPanel / 天赋 / TalentPointsLabel.text = "可用天赋点: " + str(level_manager.talent_points) + " (每级获得1点)"
+		
+		# 刷新天赋面板UI
+		var talent_panel = get_node_or_null("BottomPanel/天赋")
+		if talent_panel and talent_panel.has_method("_refresh"):
+			talent_panel._refresh()
+
+func _on_level_started(level_number, level_data):
+	print("UIManager: _on_level_started(", level_number, ", ", level_data, ") called")
+	update_level_display()
+	
+func _on_level_progress_updated(current_progress, target_progress):
+	print("UIManager: _on_level_progress_updated(", current_progress, ", ", target_progress, ") called")
+	update_level_progress(current_progress, target_progress)
+
+func _on_game_attribute_changed(attribute_name: String, value):
+	print("UIManager: _on_game_attribute_changed(", attribute_name, ", ", value, ") called")
+	match attribute_name:
+		"health":
+			update_health_bar(value, GameAttributes.max_health)
+		"max_health":
+			update_health_bar(GameAttributes.health, value)
+		"player_level":
+			update_player_level()
+		"player_experience":
+			update_exp_display()
+		"experience_required":
+			update_exp_display()
+		# 可以根据需要添加其他属性的更新逻辑
+
+func _on_talent_points_changed(talent_points):
+	print("UIManager: _on_talent_points_changed(", talent_points, ") called")
+	print("UIManager: 天赋点变化: ", talent_points)
+	# 更新天赋点显示
+	if has_node("BottomPanel/天赋/TalentPointsLabel"):
+		$BottomPanel / 天赋 / TalentPointsLabel.text = "可用天赋点: " + str(talent_points) + " (每级获得1点)"
+	
+	# 刷新天赋面板UI
+	var talent_panel = get_node_or_null("BottomPanel/天赋")
+	if talent_panel and talent_panel.has_method("_refresh"):
+		talent_panel._refresh()
+
 # 更新生命值显示
 func update_health_display():
 	var player = get_node("../Player")
 	if player and has_node("BottomPanel/属性/HealthLabel"):
 		$BottomPanel / 属性 / HealthLabel.text = "生命值: " + str(player.health) + "/" + str(player.max_health)
 
-# 初始化MOD装备页面
-func initialize_mod_equipment_page():
-	# 这里可以添加MOD装备页面的初始化逻辑
-	pass
+
+# 启动UI更新定时器
+func _start_ui_update_timer():
+	var timer = Timer.new()
+	timer.wait_time = 0.1 # 每0.1秒更新一次
+	timer.autostart = true
+	timer.connect("timeout", Callable(self, "_on_ui_update_timer_timeout"))
+	add_child(timer)
+
+# UI定时更新回调
+func _on_ui_update_timer_timeout():
+	if not _player or not _game_manager:
+		return
+	
+	# 更新血量显示
+	update_health_display()
+	
+	# 更新金币显示
+	# if has_node("ScoreLabel"):
+	#	$ScoreLabel.text = "金币: " + str(_game_manager.score)
+	
+	# 更新关卡显示
+	update_level_display()
+	
+	# 更新经验条
+	update_exp_display()
+	
+	# 更新等级显示
+	update_player_level()
+	
+	# 更新玩家属性
+	if has_node("BottomPanel/属性"):
+		var attribute_panel = get_node("BottomPanel/属性")
+		if attribute_panel.has_method("update_player_stats"):
+			attribute_panel.update_player_stats() # 移除参数
+	# update_player_stats()
+
+# 更新关卡显示（兼容旧调用方式）
+func update_level_display(_level_number = null, _level_data = null):
+	print("UIManager: update_level_display() called")
+	var level_manager = get_node("/root/LevelManager")
+	if has_node("InGameLevelInfo/InGameLevel") and level_manager:
+		var current_level_val = level_manager.current_level
+		# 计算关卡格式：1-1, 1-2, 1-3, 1-4, 1-5, 2-1...
+		var major_level = ((current_level_val - 1) / 5) + 1
+		var minor_level = ((current_level_val - 1) % 5) + 1
+		var level_text = "关卡: " + str(major_level) + "-" + str(minor_level)
+		$InGameLevelInfo/InGameLevel.text = level_text
+		print("UIManager: 更新关卡显示到: ", level_text, " (从LevelManager获取: ", current_level_val, ")")
+	else:
+		print("UIManager: 警告: 无法更新InGameLevel，节点或LevelManager缺失")
+	
+	# 同时更新关卡进度条
+	if level_manager:
+		var current_progress_val = level_manager.current_progress
+		var target_progress_val = level_manager.target_progress
+		update_level_progress(current_progress_val, target_progress_val)
+		print("UIManager: 调用 update_level_progress: current=", current_progress_val, ", target=", target_progress_val)
+	else:
+		print("UIManager: 警告: 无法更新关卡进度条，LevelManager缺失")
+
+# 更新关卡进度条
+func update_level_progress(current_progress: int, target_progress: int):
+	if has_node("InGameLevelInfo/InGameProgress"):
+		var progress_bar = $InGameLevelInfo/InGameProgress
+		# 限制进度百分比在0-1之间
+		var progress_percentage = clamp(float(current_progress) / float(target_progress) if target_progress > 0 else 0.0, 0.0, 1.0)
+		
+		# InGameProgress的offset_left是-150，最大宽度是300像素（从-150到150）
+		var bar_start = -150.0
+		var bar_max_width = 300.0
+		progress_bar.offset_right = bar_start + (bar_max_width * progress_percentage)
+		
+		# 根据进度改变颜色
+		if progress_percentage >= 0.8:
+			progress_bar.color = Color(0.0, 1.0, 0.0, 1) # 80%以上变绿色
+		elif progress_percentage >= 0.5:
+			progress_bar.color = Color(1.0, 1.0, 0.0, 1) # 50-80%黄色
+		else:
+			progress_bar.color = Color(0.2, 0.8, 0.2, 1) # 默认浅绿色
+
+# 更新经验显示
+func update_exp_display():
+	print("UIManager: update_exp_display() called")
+	var level_manager = get_node("/root/LevelManager")
+	if not level_manager:
+		print("UIManager: 警告: update_exp_display 无法找到LevelManager")
+		return
+	
+	# 使用LevelManager的经验数据，而不是GameAttributes
+	var current_exp = level_manager.player_exp
+	var required_exp = level_manager.exp_to_next_level
+	
+	# 同步到GameAttributes (已移除此冗余同步)
+	# GameAttributes.player_experience = current_exp
+	# GameAttributes.experience_required = required_exp
+	
+	# 更新经验文本
+	if has_node("InGameLevelInfo/ExpLabel"):
+		var exp_percentage = int((float(current_exp) / float(required_exp)) * 100) if required_exp > 0 else 0
+		$InGameLevelInfo/ExpLabel.text = str(current_exp) + "/" + str(required_exp) + " (" + str(exp_percentage) + "%)"
+	
+	# 更新经验条（ColorRect类型，通过调整offset_right来显示进度）
+	if has_node("InGameLevelInfo/ExpBar"):
+		var exp_bar = $InGameLevelInfo/ExpBar
+		# 限制经验百分比在0-1之间
+		var exp_percentage = clamp(float(current_exp) / float(required_exp) if required_exp > 0 else 0.0, 0.0, 1.0)
+		
+		# ExpBar的offset_left是-150，最大宽度是300像素（从-150到150）
+		var bar_start = -150.0
+		var bar_max_width = 300.0
+		exp_bar.offset_right = bar_start + (bar_max_width * exp_percentage)
+		
+		# 根据经验值百分比改变颜色
+		if exp_percentage >= 0.7:
+			exp_bar.color = Color(0.0, 1.0, 0.0, 1) # 70%以上变绿色
+		else:
+			exp_bar.color = Color(0.2, 0.6, 1.0, 1) # 蓝色
+	else:
+		print("UIManager: ⚠️ 经验条节点不存在: InGameLevelInfo/ExpBar")

@@ -132,12 +132,24 @@ var talent_definitions = {
 
 # 玩家天赋状态
 var player_talents = {} # {talent_id: current_level}
-var talent_points_used = 0
+# var talent_points_used = 0 # 移除此行，天赋点数由LevelManager管理
 var max_talent_points = 30 # 30级系统总点数
+var _get_talent_level_call_count = 0 # Add a counter for debugging
 
 func _ready():
+	print("Talents: _ready() called")
 	add_to_group("talents")
 	initialize_talents()
+	
+	# 获取LevelManager的引用
+	var level_manager = get_node("/root/LevelManager")
+	if level_manager:
+		max_talent_points = level_manager.player_max_level
+	else:
+		print("Talents: 警告: 无法找到LevelManager节点")
+	
+	print("Talents: _ready() - Talent definitions loaded.")
+	# connect_talent_panel_signals() # 后面会连接
 
 # 初始化天赋状态
 func initialize_talents():
@@ -152,6 +164,8 @@ func get_talent_info(talent_id):
 
 # 获取天赋当前等级
 func get_talent_level(talent_id):
+	_get_talent_level_call_count += 1
+	print("Talents: get_talent_level(", talent_id, ") called. Count: ", _get_talent_level_call_count) # 避免此函数被频繁调用时的日志过多
 	if talent_id in player_talents:
 		return player_talents[talent_id]
 	return 0
@@ -170,7 +184,10 @@ func can_upgrade_talent(talent_id, available_points):
 	
 	# 检查所需等级
 	var required_level = talent.required_levels[current_level]
-	var player_level = GameAttributes.player_level
+	var level_manager = get_node("/root/LevelManager")
+	if not level_manager:
+		return {"ok": false, "reason": "无法找到LevelManager"}
+	var player_level = level_manager.player_level
 	if player_level < required_level:
 		return {"ok": false, "reason": "需要等级 " + str(required_level)}
 	
@@ -182,8 +199,13 @@ func can_upgrade_talent(talent_id, available_points):
 	return {"ok": true, "reason": ""}
 
 # 升级天赋
-func upgrade_talent(talent_id, available_points):
-	var check = can_upgrade_talent(talent_id, available_points)
+func upgrade_talent(talent_id, _available_points):
+	var level_manager = get_node("/root/LevelManager")
+	if not level_manager:
+		print("Talents: 无法找到LevelManager，无法升级天赋")
+		return false
+	
+	var check = can_upgrade_talent(talent_id, level_manager.talent_points) # 使用LevelManager的天赋点
 	if not check.ok:
 		print("无法升级天赋 ", talent_id, ": ", check.reason)
 		return false
@@ -194,27 +216,33 @@ func upgrade_talent(talent_id, available_points):
 	
 	# 升级天赋
 	player_talents[talent_id] += 1
-	talent_points_used += cost
+	# talent_points_used += cost # 移除此行，由LevelManager消耗天赋点
+	
+	# 通知LevelManager消耗天赋点
+	level_manager.spend_talent_points(cost)
 	
 	# 应用天赋效果
 	apply_talent_effect(talent_id, current_level + 1)
 	
 	# 发送信号
-	emit_signal("talent_unlocked", talent_id, current_level + 1)
-	emit_signal("talent_point_used", talent_id, get_remaining_talent_points())
+	emit_signal("talent_unlocked") # 移除参数
+	emit_signal("talent_point_used") # 移除参数
 	
-	print("升级天赋: ", talent.name, " 到等级 ", current_level + 1)
+	print("Talents: 升级天赋: ", talent.name, " 到等级 ", current_level + 1)
 	return true
 
 # 应用天赋效果
 func apply_talent_effect(talent_id, level):
+	print("Talents: apply_talent_effect() called for talent: ", talent_id, ", level: ", level)
 	var talent = talent_definitions[talent_id]
 	if not talent or level > talent.max_level:
+		print("Talents: 警告: 尝试应用不存在的天赋或无效等级")
 		return
 	
 	var effect = talent.effects[level - 1]
 	var attribute = effect["attribute"]
 	var value = effect["value"]
+	print("Talents: 应用效果: attribute=", attribute, ", value=", value)
 	
 	# 应用基础属性效果
 	if effect.has("special"):
@@ -224,37 +252,72 @@ func apply_talent_effect(talent_id, level):
 			GameAttributes.last_stand_shield_enabled = value
 			GameAttributes.last_stand_shield_threshold = special.threshold
 			GameAttributes.last_stand_shield_duration = special.duration
+			print("Talents: 更新GameAttributes: ", attribute, " to ", value)
 		elif attribute == "dual_target_enabled":
 			GameAttributes.dual_target_enabled = value
+			print("Talents: 更新GameAttributes: ", attribute, " to ", value)
 	else:
 		# 普通属性效果
 		var current_value = GameAttributes.get(attribute)
 		if current_value != null:
 			if current_value is bool:
-				GameAttributes.set(attribute, value)
+				GameAttributes.update_attribute(attribute, value)
+				print("Talents: 更新GameAttributes (bool): ", attribute, " to ", value)
+			elif attribute == "max_health": # 特殊处理max_health，使用increase_attribute
+				GameAttributes.increase_attribute(attribute, value)
+				print("Talents: 更新GameAttributes (max_health): ", attribute, " by ", value)
 			else:
-				GameAttributes.set(attribute, current_value + value)
+				GameAttributes.increase_attribute(attribute, value) # 使用increase_attribute
+				# GameAttributes.set(attribute, current_value + value) # 移除直接set
+				print("Talents: 更新GameAttributes (numeric): ", attribute, " from ", current_value, " to ", current_value + value)
 		else:
-			print("警告: 属性 ", attribute, " 不存在于 GameAttributes")
+			print("Talents: 警告: 属性 ", attribute, " 不存在于 GameAttributes")
 
-# 获取已使用的天赋点数
+# 获取已使用的天赋点数（不再从LevelManager获取）
 func get_used_talent_points():
-	return talent_points_used
+	var used_points = 0
+	for talent_id in player_talents.keys():
+		var current_level = player_talents[talent_id]
+		if current_level > 0:
+			var talent_def = talent_definitions[talent_id]
+			for i in range(current_level):
+				used_points += talent_def.cost_per_level[i]
+	return used_points
 
 # 获取剩余天赋点数
 func get_remaining_talent_points():
-	var total_points = GameAttributes.player_level * 1 # 每级1点
-	return total_points - talent_points_used
+	var level_manager = get_node("/root/LevelManager")
+	if level_manager:
+		# 总天赋点数由LevelManager提供
+		return level_manager.total_talent_points - get_used_talent_points() # 从总点数减去已使用点数
+	return 0
 
 # 重置天赋（用于测试）
 func reset_talents():
 	player_talents.clear()
 	initialize_talents()
-	talent_points_used = 0
+	# talent_points_used = 0 # 移除此行
 	print("天赋已重置")
+
+# 从存档数据加载天赋
+func load_talent_data(talent_save_data: Dictionary):
+	player_talents.clear()
+	initialize_talents() # 先初始化所有天赋为0级
+	
+	if talent_save_data.has("unlocked_talents_with_levels"):
+		for talent_info in talent_save_data.unlocked_talents_with_levels:
+			var talent_id = talent_info.id
+			var level = talent_info.level
+			if talent_id in talent_definitions and level > 0:
+				player_talents[talent_id] = level
+				# 应用天赋效果
+				for i in range(level): # 逐级应用效果
+					apply_talent_effect(talent_id, i + 1)
+	print("天赋数据加载完成")
 
 # 获取天赋树信息
 func get_talent_tree_info():
+	print("Talents: get_talent_tree_info() called")
 	var trees = {
 		"output": {"name": "输出系", "talents": [], "points_used": 0},
 		"survival": {"name": "生存系", "talents": [], "points_used": 0},
@@ -277,7 +340,10 @@ func get_talent_tree_info():
 		})
 		
 		# 计算该系已用点数
-		for i in range(current_level):
-			trees[tree].points_used += talent.cost_per_level[i]
+		# 这里不再单独计算，因为get_used_talent_points()会计算所有已用点数
+		# 如果需要按系统计，可以在get_used_talent_points()中添加逻辑或额外函数
+		# 为了简化，暂时不在此处按系统计已用点数，UI只显示总剩余点数
+		# for i in range(current_level):
+		# 	trees[tree].points_used += talent.cost_per_level[i]
 	
 	return trees

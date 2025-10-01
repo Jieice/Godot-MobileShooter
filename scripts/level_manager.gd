@@ -75,11 +75,11 @@ func get_level_config():
 	
 	match phase:
 		LevelPhase.BEGINNER:
-			# 新手期（1-5关）血量1倍、移速1倍、每波5只、间隔8秒
+			# 新手期（1-5关）血量1倍、移速1倍、每波5只、间隔4秒
 			config.health_multiplier = 1.0
 			config.speed_multiplier = 1.0
 			config.enemies_per_wave = 5
-			config.wave_interval = 8.0
+			config.wave_interval = 4.0 # 调整为 4.0 秒，加快开局生成速度
 			
 		LevelPhase.TRANSITION:
 			# 过渡期（6-10关）血量1.2倍、移速1.1倍、每波8只
@@ -141,15 +141,19 @@ func get_level_config():
 	return config
 
 func _ready():
+	print("LevelManager: _ready() called")
 	add_to_group("level_manager")
+	print("LevelManager: 初始玩家等级: ", player_level, ", 初始天赋点: ", talent_points, ", 初始关卡: ", current_level)
 
 # 开始指定关卡
 func start_level(level_number):
+	print("LevelManager: start_level() called with level_number: ", level_number)
 	if level_number < 1:
 		push_error("无效的关卡编号: " + str(level_number))
 		return
 	
 	current_level = level_number
+	print("LevelManager: 设置当前关卡为: ", current_level)
 	var level_config = get_level_config()
 	
 	# 设置关卡进度
@@ -158,6 +162,7 @@ func start_level(level_number):
 	total_waves = 5 # 每关5波怪物
 	enemies_per_wave = level_config.enemies_per_wave
 	target_progress = total_waves * enemies_per_wave
+	print("LevelManager: 关卡进度设置: current_progress=", current_progress, ", target_progress=", target_progress)
 	
 	if level_config.has_boss:
 		target_progress += 1 # BOSS算1个进度
@@ -165,9 +170,9 @@ func start_level(level_number):
 			target_progress += level_config.additional_enemies
 	
 	# 配置敌人生成器
-	var enemy_spawner = get_tree().get_nodes_in_group("enemy_spawner")
-	if enemy_spawner.size() > 0:
-		enemy_spawner = enemy_spawner[0]
+	var enemy_spawner = get_node_or_null("/root/Main/EnemySpawner") # 直接获取 EnemySpawner 节点
+	if enemy_spawner:
+		print("LevelManager: 成功获取 EnemySpawner") # 添加此行
 		enemy_spawner.health_multiplier = level_config.health_multiplier
 		enemy_spawner.speed_multiplier = level_config.speed_multiplier
 		enemy_spawner.spawn_interval = level_config.wave_interval
@@ -178,18 +183,25 @@ func start_level(level_number):
 		enemy_spawner.boss_effects = level_config.boss_effects
 		enemy_spawner.additional_enemies = level_config.additional_enemies
 		enemy_spawner.current_level = current_level
+		print("LevelManager: EnemySpawner配置: spawn_interval=", enemy_spawner.spawn_interval, ", enemies_per_wave=", enemy_spawner.enemies_per_wave)
 	
 	# 发送关卡开始信号
 	emit_signal("level_started", current_level, level_config)
 	
+	# 确保关卡进度在关卡开始时得到更新
+	emit_signal("level_progress_updated", current_progress, target_progress)
+	
 	# 开始生成敌人
 	if enemy_spawner:
+		print("LevelManager: 调用 EnemySpawner.start_level()")
 		enemy_spawner.start_level()
 
 # 更新关卡进度
 func update_progress(amount = 1):
+	print("LevelManager: update_progress() called with amount: ", amount, ", current_progress: ", current_progress, ", target_progress: ", target_progress)
 	current_progress += amount
 	emit_signal("level_progress_updated", current_progress, target_progress)
+	print("LevelManager: 进度更新: current_progress=", current_progress, ", target_progress=", target_progress)
 	
 	# 检查关卡是否完成
 	if current_progress >= target_progress:
@@ -207,6 +219,7 @@ func start_new_wave():
 
 # 完成当前关卡
 func complete_level():
+	print("LevelManager: complete_level() called")
 	var enemy_spawner = get_node("/root/Main/EnemySpawner")
 	if enemy_spawner:
 		enemy_spawner.stop()
@@ -222,9 +235,18 @@ func complete_level():
 	
 	# 自动进入下一关
 	current_level += 1
+	
+	# 模拟新关卡的开始，触发UI更新
+	emit_signal("level_started", current_level, get_level_config())
+	
+	# 刷新存档面板UI（最高关卡等信息）
+	var save_panel = get_node_or_null("/root/Main/UI/BottomPanel/设置/SaveManagerSection")
+	if save_panel and save_panel.has_method("initialize_save_panel"):
+		save_panel.initialize_save_panel()
 
 # 获取当前关卡信息
 func get_current_level_info():
+	print("LevelManager: get_current_level_info() called")
 	var phase_names = {
 		LevelPhase.BEGINNER: "新手期",
 		LevelPhase.TRANSITION: "过渡期",
@@ -253,10 +275,11 @@ func get_progress_percentage():
 
 # 玩家等级系统功能
 func add_experience(amount):
+	print("LevelManager: add_experience(", amount, ") called")
 	player_exp += amount
 	
 	# 显示经验值获取效果
-	var ui_manager = get_node_or_null("/root/Main/UI")
+	var ui_manager = get_node_or_null("/root/Main/HUD")
 	if ui_manager and ui_manager.has_method("show_exp_gain_effect"):
 		ui_manager.show_exp_gain_effect(amount)
 	
@@ -264,14 +287,25 @@ func add_experience(amount):
 	while player_exp >= exp_to_next_level and player_level < player_max_level:
 		level_up()
 	
+	# (这些现在直接由LevelManager管理，无需同步)
+	# # GameAttributes.player_experience = current_exp
+	# # GameAttributes.experience_required = required_exp
+
 	# 更新UI
-	if ui_manager and ui_manager.has_method("update_exp_bar"):
-		ui_manager.update_exp_bar(player_exp, exp_to_next_level)
+	if ui_manager and ui_manager.has_method("update_exp_display"):
+		ui_manager.update_exp_display()
 
 func level_up():
+	print("LevelManager: level_up() called")
 	player_level += 1
 	player_exp -= exp_to_next_level
+	print("LevelManager: 玩家升级: 新等级=", player_level, ", 剩余经验=", player_exp)
 	
+	# (这些现在直接由LevelManager管理，无需同步)
+	# # GameAttributes.update_attribute("player_level", player_level)
+	# # GameAttributes.update_attribute("player_experience", player_exp)
+	print("LevelManager: 同步GameAttributes: player_level=", player_level, ", player_experience=", player_exp)
+
 	# 更新任务进度 - 等级提升
 	if has_node("/root/QuestSystem"):
 		var quest_system = get_node("/root/QuestSystem")
@@ -280,14 +314,15 @@ func level_up():
 	# 计算下一级所需经验值 (每级增加20%)
 	exp_to_next_level = int(exp_to_next_level * 1.2)
 	
-	# 每升3级获得1点天赋点
-	if player_level % 3 == 0:
-		talent_points += 1
-		total_talent_points += 1
-		emit_signal("talent_points_changed", talent_points)
-		# 同步刷新天赋UI（如果存在）
-		var ui_manager = get_node_or_null("/root/Main/UI")
-		if ui_manager and ui_manager.has_method("initialize_talent_page"):
+	# 每升1级获得1点天赋点（总共30级=30点）
+	talent_points += 1
+	total_talent_points += 1
+	emit_signal("talent_points_changed", talent_points)
+	print("获得天赋点! 当前天赋点: ", talent_points)
+	
+	# 同步刷新天赋UI（如果存在）
+	var ui_manager = get_node_or_null("/root/Main/UI")
+	if ui_manager and ui_manager.has_method("initialize_talent_page"):
 			ui_manager.initialize_talent_page()
 	
 	# 显示升级效果
@@ -302,6 +337,7 @@ func level_up():
 	update_player_attributes()
 
 func update_player_attributes():
+	print("LevelManager: update_player_attributes() called")
 	# 获取玩家节点
 	var player = get_node_or_null("/root/Main/Player")
 	if not player:
@@ -309,36 +345,37 @@ func update_player_attributes():
 	
 	# 基础属性值
 	var base_health = 100
-	var _base_speed = 300
-	var _base_damage = 10
+	# var _base_speed = 300 # 移除，速度通过GameAttributes更新
+	# var _base_damage = 10 # 移除，伤害通过GameAttributes更新
 	
 	# 每级增加的属性百分比
 	var health_per_level = 0.05 # 5%
-	var _speed_per_level = 0.02 # 2%
-	var _damage_per_level = 0.04 # 4%
+	# var _speed_per_level = 0.02 # 移除
+	# var _damage_per_level = 0.04 # 移除
 	
 	# 计算新属性值
 	var health_multiplier = 1.0 + (player_level - 1) * health_per_level
-	var _speed_multiplier = 1.0 + (player_level - 1) * _speed_per_level
-	var _damage_multiplier = 1.0 + (player_level - 1) * _damage_per_level
+	# var _speed_multiplier = 1.0 + (player_level - 1) * _speed_per_level # 移除
+	# var _damage_multiplier = 1.0 + (player_level - 1) * _damage_per_level # 移除
 	
-	# 更新玩家属性
-	player.max_health = int(base_health * health_multiplier)
-	player.health = player.max_health # 升级时恢复满血
-	# 注意：CharacterBody2D没有speed和damage属性，这些应该通过GameAttributes管理
-	# player.speed = base_speed * speed_multiplier  # 移除这行
-	# player.damage = base_damage * damage_multiplier  # 移除这行
-	
-	# 更新UI显示
-	var ui_manager = get_node_or_null("/root/Main/UI")
-	if ui_manager and ui_manager.has_method("update_player_attributes"):
-		ui_manager.update_player_attributes(player)
+	# 更新玩家最大生命值和当前生命值通过GameAttributes
+	var new_max_health = int(base_health * health_multiplier)
+	GameAttributes.update_attribute("max_health", new_max_health)
+	GameAttributes.update_attribute("health", new_max_health) # 升级时恢复满血
 
-func use_talent_point():
-	if talent_points > 0:
-		talent_points -= 1
+	# 移除对UIManager的错误调用，UIManager会监听GameAttributes的信号
+	# var ui_manager = get_node_or_null("/root/Main/HUD")
+	# if ui_manager and ui_manager.has_method("update_player_attributes"):
+	#	ui_manager.update_player_attributes(player)
+
+# 新增函数：消耗天赋点数
+func spend_talent_points(cost: int):
+	if talent_points >= cost:
+		talent_points -= cost
+		print("LevelManager: 消耗天赋点数: ", cost, ", 剩余: ", talent_points)
 		emit_signal("talent_points_changed", talent_points)
 		return true
+	print("LevelManager: 天赋点不足，无法消耗: ", cost, ", 现有: ", talent_points)
 	return false
 
 func get_player_level_info():

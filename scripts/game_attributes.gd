@@ -4,11 +4,9 @@ extends Node
 # 存储和管理游戏中的各种属性和数值
 
 signal attributes_changed(attribute_name, value)
+signal diamonds_changed(new_diamonds) # 新增信号，表示钻石数量已更改
 
 # 玩家属性
-var player_level = 1
-var player_experience = 0
-var experience_required = 100
 var player_speed = 300
 var health = 100
 var max_health = 100
@@ -53,11 +51,6 @@ var core_modules = []
 var auxiliary_modules = []
 var special_modules = []
 
-# MOD系统相关属性
-var shield_value = 0 # 护盾值
-var elite_damage_bonus = 0.0 # 精英伤害加成
-var chain_reaction_enabled = false # 连锁反应启用
-var life_siphon_enabled = false # 生命虹吸启用
 
 # 子弹基础属性
 var bullet_speed = 400
@@ -71,12 +64,63 @@ var talent_points = 0 # 天赋点数
 
 # 初始化
 func _ready():
+	print("GameAttributes: _ready() called")
 	# 添加到自动加载单例组
 	add_to_group("game_attributes")
 	
-	# 连接MOD系统信号
-	ModSystem.connect("mod_equipped", Callable(self, "_on_mod_equipped"))
-	ModSystem.connect("mod_unequipped", Callable(self, "_on_mod_unequipped"))
+	# 初始化属性
+	initialize_attributes()
+	
+	# *** 临时修改玩家等级用于测试 ***
+	# player_level = 10
+
+
+# 初始化属性
+func initialize_attributes():
+	print("GameAttributes: initialize_attributes() called")
+	# 重置所有属性为默认值
+	var _all_attributes = {
+		"bullet_damage": 10, # 基础子弹伤害
+		"bullet_cooldown": 0.5,
+		"defense": 0.0,
+		"penetration": 0.0,
+		"auto_fire": true,
+		"attack_range": 1.0,
+		"penetration_count": 0,
+		"crit_chance": 0.1, # 修正初始暴击率为 10%
+		"crit_multiplier": 1.5,
+		"double_shot_chance": 0.0,
+		"triple_shot_chance": 0.0,
+		"crush_chance": 0.0,
+		"crush_boss_bonus": 0.0,
+		"bleed_chance": 0.0,
+		"bleed_damage_per_second": 0.0,
+		"bleed_duration": 0.0,
+		"fission_chance": 0.0,
+		"dodge_chance": 0.0,
+		"attack_speed": 1.0,
+		"last_stand_shield_enabled": false,
+		"last_stand_shield_duration": 0.0,
+		"last_stand_shield_threshold": 0.0,
+		"elite_priority_chance": 0.0,
+		"kill_energy_chance": 0.0,
+		"dual_target_enabled": false,
+		"chain_lightning_chance": 0.0,
+		"bullet_damage_multiplier": 1.0,
+		"bullet_lifetime": 2.0,
+		"fission_range": 1.0,
+		"is_fission_enabled": false,
+		"max_fission_level": 2,
+		"fission_count": 2,
+		"fission_damage_ratio": 0.5,
+		"bullet_speed": 400,
+		"diamonds": 0,
+		"score": 0,
+		"talent_points": 0,
+		"player_speed": 300,
+		"health": 100,
+		"max_health": 100,
+	}
 
 # 增加属性值
 func increase_attribute(attribute_name, amount):
@@ -85,6 +129,8 @@ func increase_attribute(attribute_name, amount):
 		set(attribute_name, new_value)
 		print("增加属性 ", attribute_name, " 值: ", amount, " 当前值: ", new_value)
 		emit_signal("attributes_changed", attribute_name, new_value)
+		if attribute_name == "diamonds": # 如果是钻石属性，发出专用信号
+			emit_signal("diamonds_changed", new_value)
 		return true
 	print("属性不存在: ", attribute_name)
 	return false
@@ -93,10 +139,12 @@ func increase_attribute(attribute_name, amount):
 func update_attribute(attribute_name, value):
 	if get(attribute_name) != null:
 		set(attribute_name, value)
-		print("更新属性 ", attribute_name, " 为: ", value)
+		print("GameAttributes: 更新属性 ", attribute_name, " 为: ", value)
 		emit_signal("attributes_changed", attribute_name, value)
+		if attribute_name == "diamonds": # 如果是钻石属性，发出专用信号
+			emit_signal("diamonds_changed", value)
 		return true
-	print("属性不存在: ", attribute_name)
+	print("GameAttributes: 属性不存在: ", attribute_name)
 	return false
 
 # 获取属性值
@@ -105,62 +153,3 @@ func get_attribute(attribute_name):
 		return get(attribute_name)
 	print("属性不存在: ", attribute_name)
 	return null
-
-# MOD装备时的效果应用
-func _on_mod_equipped(mod_id, _slot_index):
-	print("应用MOD效果: ", mod_id)
-	apply_mod_effects()
-
-# MOD卸下时的效果移除
-func _on_mod_unequipped(mod_id, _slot_index):
-	print("移除MOD效果: ", mod_id)
-	apply_mod_effects()
-
-# 应用所有装备的MOD效果
-func apply_mod_effects():
-	print("开始应用MOD效果...")
-	# 重置所有MOD相关属性到基础值
-	reset_mod_attributes()
-	
-	# 获取当前装备的MOD效果
-	var mod_effects = ModSystem.get_equipped_mod_effects()
-	print("当前装备的MOD效果: ", mod_effects)
-	
-	# 应用每个效果
-	for attribute in mod_effects:
-		var value = mod_effects[attribute]
-		print("处理属性: ", attribute, " 值: ", value)
-		# 检查属性是否存在
-		if attribute in self:
-			# 如果是数值属性，累加效果
-			if attribute in ["attack_speed", "attack_range", "penetration_count", "shield_value", "elite_damage_bonus"]:
-				var current_value = get(attribute)
-				set(attribute, current_value + value)
-				print("应用MOD效果: ", attribute, " +", value, " = ", get(attribute))
-			# 如果是布尔属性，直接设置
-			elif attribute in ["chain_reaction_enabled", "life_siphon_enabled"]:
-				set(attribute, value)
-				print("应用MOD效果: ", attribute, " = ", value)
-			else:
-				# 其他属性直接设置
-				set(attribute, value)
-				print("应用MOD效果: ", attribute, " = ", value)
-		else:
-			print("警告: 属性不存在: ", attribute)
-	
-	print("MOD效果应用完成，当前穿透数量: ", penetration_count)
-
-# 重置MOD相关属性
-func reset_mod_attributes():
-	# 重置攻击相关属性
-	attack_speed = 1.0
-	attack_range = 1.0
-	penetration_count = 0
-	
-	# 重置生存相关属性
-	shield_value = 0
-	elite_damage_bonus = 0.0
-	
-	# 重置特效相关属性
-	chain_reaction_enabled = false
-	life_siphon_enabled = false

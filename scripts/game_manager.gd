@@ -1,23 +1,39 @@
 extends Node
 
 signal score_updated
-signal game_over_triggered
-signal level_changed(level_number)
-signal game_restarted
+signal game_over_triggered(final_score: int)
+signal game_restarted # 游戏重启信号
 
 var score = 0 # 现在表示金币数量
 var game_running = true
-var level_manager = null
-var current_level = 1
+var current_level_config # 保存当前关卡配置
+
+var level_manager # 类成员变量
 
 func _ready():
+	print("GameManager: _ready() called")
 	add_to_group("game_manager")
 	
-	# 创建关卡管理器
-	level_manager = preload("res://scripts/level_manager.gd").new()
-	add_child(level_manager)
+	# 确保游戏结束面板在游戏启动时是隐藏的
+	var game_over_panel = get_node_or_null("/root/Main/HUD/GameOverPanel")
+	if game_over_panel:
+		game_over_panel.hide()
 	
-	# 天赋系统已移除
+	# 在_ready中连接Player的死亡信号，确保它在Player实例化后连接
+	var player = get_node_or_null("Player")
+	if player:
+		player.connect("player_died", Callable(self, "game_over"))
+	
+	print("GameManager: 尝试获取LevelManager...")
+	# 获取关卡管理器引用并启动第一关
+	level_manager = get_node_or_null("/root/LevelManager") # 直接赋值给类成员变量
+	if level_manager:
+		print("GameManager: 成功获取LevelManager: ", level_manager)
+		level_manager.start_level(1)
+	else:
+		print("GameManager: 警告: 无法找到LevelManager节点, level_manager is Nil!")
+	
+	print("GameManager: _ready()结束")
 	
 	# 连接关卡管理器信号
 	level_manager.connect("level_started", Callable(self, "_on_level_started"))
@@ -54,10 +70,7 @@ func start_level(level_number):
 	if not game_running:
 		return
 	
-	current_level = level_number
-	emit_signal("level_changed", current_level)
-	
-	# 通过关卡管理器开始关卡
+	# 直接通过关卡管理器开始关卡，GameManager不再维护current_level
 	level_manager.start_level(level_number)
 	
 # 玩家升级处理
@@ -65,14 +78,14 @@ func _on_player_level_up(level):
 	print("玩家升级到 ", level, " 级")
 	
 	# 更新UI显示
-	var ui_manager = get_node_or_null("/root/Main/UI")
+	var ui_manager = get_node_or_null("/root/Main/HUD")
 	if ui_manager and ui_manager.has_method("update_level_display"):
 		var level_info = level_manager.get_player_level_info()
 		ui_manager.update_level_display(level, level_info)
 
 func _on_level_started(level_number, level_data):
 	# 更新UI显示当前关卡
-	var ui_manager = get_node_or_null("/root/Main/UI")
+	var ui_manager = get_node_or_null("/root/Main/HUD")
 	if ui_manager and ui_manager.has_method("update_level_display"):
 		ui_manager.update_level_display(level_number, level_data)
 
@@ -83,13 +96,19 @@ func _on_level_completed(level_number):
 
 func _on_level_progress_updated(current_progress, target_progress):
 	# 更新UI显示关卡进度
-	var ui_manager = get_node_or_null("/root/Main/UI")
+	var ui_manager = get_node_or_null("/root/Main/HUD")
 	if ui_manager and ui_manager.has_method("update_level_progress"):
 		ui_manager.update_level_progress(current_progress, target_progress)
 
 func game_over():
+	print("GameManager: game_over() called!")
 	game_running = false
-	emit_signal("game_over_triggered", score)
+	emit_signal("game_over_triggered", score) # 不带参数地发出信号
+	
+	# 显示游戏结束面板
+	var game_over_panel = get_node_or_null("/root/Main/HUD/GameOverPanel")
+	if game_over_panel:
+		game_over_panel.show()
 	
 	# 停止生成敌人
 	get_node("/root/Main/EnemySpawner").stop()
@@ -97,24 +116,8 @@ func game_over():
 	# 游戏结束UI由UI管理器处理
 
 func restart_game():
-	# 重置游戏状态
-	score = 0
-	emit_signal("score_updated", score) # 更新UI显示
-	game_running = true
-	current_level = 1
-	
-	# 移除所有敌人
-	get_tree().call_group("enemies", "queue_free")
-	
-	# 重置玩家
-	var player = get_node("/root/Main/Player")
-	player.health = player.max_health
-	player.is_alive = true
-	
-	# 开始第一关
-	start_level(1)
-	
-	# 发送游戏重启信号
+	print("GameManager: restart_game() called. Reloading current scene.")
+	get_tree().reload_current_scene()
 	emit_signal("game_restarted")
 
 # 生存时间任务更新

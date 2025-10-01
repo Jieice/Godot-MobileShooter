@@ -1,331 +1,267 @@
 extends Node
 
-# 任务和成就系统
-# 管理每日任务、成就和奖励
+# 任务系统 - 引导玩家体验核心玩法
+signal quest_completed(quest_id: String, reward: int)
+signal achievement_unlocked(achievement_id: String)
+signal daily_quests_reset()
 
-signal quest_completed(quest_id, reward)
-signal achievement_unlocked(achievement_id, reward)
-signal daily_quests_reset
+# 每日任务数据
+var daily_quests = []
+var completed_daily_quests = []
 
-# 任务类型
+# 成就数据
+var achievements = {}
+var unlocked_achievements = []
+
+# 任务类型枚举
 enum QuestType {
-	DAILY, # 每日任务
-	ACHIEVEMENT # 成就
+	DAILY,
+	ACHIEVEMENT,
+	MOD_COLLECTION,
+	COMBAT_STAT
 }
-
-# 任务状态
-enum QuestStatus {
-	LOCKED, # 未解锁
-	ACTIVE, # 进行中
-	COMPLETED, # 已完成
-	CLAIMED # 已领取
-}
-
-# 任务数据结构
-class QuestData:
-	var id: String
-	var title: String
-	var description: String
-	var quest_type: QuestType
-	var status: QuestStatus = QuestStatus.LOCKED
-	var progress: int = 0
-	var target: int = 1
-	var reward_type: String = "gold" # gold, diamond, mod, buff
-	var reward_value: int = 0
-	var reward_item: String = ""
-	var unlock_condition: Dictionary = {}
-	var is_repeatable: bool = false
-	var created_time: int = 0
-
-# 任务数据库
-var quest_database: Dictionary = {}
-var active_quests: Array[String] = []
-var completed_achievements: Array[String] = []
-
-# 每日任务重置时间
-var last_reset_time: int = 0
 
 func _ready():
+	print("QuestSystem: _ready() called")
 	add_to_group("quest_system")
-	initialize_quest_database()
-	load_quest_progress()
-	# 延迟检查每日重置，避免启动时的时间问题
-	call_deferred("check_daily_reset")
+	initialize_quests()
+	initialize_achievements()
+	load_progress()
 
-# 初始化任务数据库
-func initialize_quest_database():
-	# 每日任务
-	create_daily_quest("daily_combo_15", "连击大师", "触发15次连击", 15, "gold", 25)
-	create_daily_quest("daily_crit_10", "暴击专家", "触发10次暴击", 10, "diamond", 5)
-	create_daily_quest("daily_kill_50", "杀戮机器", "击杀50个敌人", 50, "gold", 30)
-	create_daily_quest("daily_survive_5", "生存专家", "存活5分钟", 5, "mod", 0, "high_speed_shooting")
-	create_daily_quest("daily_level_3", "升级达人", "提升3个等级", 3, "gold", 40)
-	
-	# 成就系统
-	create_achievement("ach_combo_100", "连击之王", "累计触发100次连击", 100, "permanent", 2, "combo_chance")
-	create_achievement("ach_crit_80", "暴击大师", "累计触发80次暴击", 80, "permanent", 1, "crit_chance")
-	create_achievement("ach_kill_1000", "千人斩", "累计击杀1000个敌人", 1000, "gold", 200)
-	create_achievement("ach_survive_30", "生存传奇", "单次存活30分钟", 30, "mod", 0, "chain_reaction")
-	create_achievement("ach_level_30", "满级玩家", "达到30级", 30, "diamond", 50)
+# 初始化每日任务
+func initialize_quests():
+	daily_quests = [
+		{
+			"id": "daily_penetration",
+			"title": "穿透大师",
+			"description": "使用穿透Mod击杀50个敌人",
+			"type": QuestType.COMBAT_STAT,
+			"target": 50,
+			"current": 0,
+			"reward_gold": 25,
+			"reward_mod_exp": 0.2, # Mod经验+20%
+			"mod_type": "penetration"
+		},
+		{
+			"id": "daily_range",
+			"title": "范围清场",
+			"description": "使用范围Mod击杀100个敌人",
+			"type": QuestType.COMBAT_STAT,
+			"target": 100,
+			"current": 0,
+			"reward_gold": 30,
+			"reward_mod_exp": 0.2,
+			"mod_type": "range"
+		},
+		{
+			"id": "daily_effect",
+			"title": "特效触发",
+			"description": "触发特效Mod 30次",
+			"type": QuestType.COMBAT_STAT,
+			"target": 30,
+			"current": 0,
+			"reward_gold": 20,
+			"reward_mod_exp": 0.2,
+			"mod_type": "effect"
+		}
+	]
 
-# 创建每日任务
-func create_daily_quest(id: String, title: String, description: String, target: int, reward_type: String, reward_value: int, reward_item: String = ""):
-	var quest = QuestData.new()
-	quest.id = id
-	quest.title = title
-	quest.description = description
-	quest.quest_type = QuestType.DAILY
-	quest.target = target
-	quest.reward_type = reward_type
-	quest.reward_value = reward_value
-	quest.reward_item = reward_item
-	quest.is_repeatable = true
-	quest.created_time = Time.get_unix_time_from_system()
-	
-	quest_database[id] = quest
-	active_quests.append(id)
-
-# 创建成就
-func create_achievement(id: String, title: String, description: String, target: int, reward_type: String, reward_value: int, reward_item: String = ""):
-	var quest = QuestData.new()
-	quest.id = id
-	quest.title = title
-	quest.description = description
-	quest.quest_type = QuestType.ACHIEVEMENT
-	quest.target = target
-	quest.reward_type = reward_type
-	quest.reward_value = reward_value
-	quest.reward_item = reward_item
-	quest.is_repeatable = false
-	quest.status = QuestStatus.ACTIVE
-	
-	quest_database[id] = quest
+# 初始化成就系统
+func initialize_achievements():
+	achievements = {
+		"mod_collector": {
+			"title": "Mod收藏家",
+			"description": "收集10种不同Mod",
+			"target": 10,
+			"current": 0,
+			"reward": "容量上限+2",
+			"unlocked": false
+		},
+		"polarity_expert": {
+			"title": "极性专家",
+			"description": "完美匹配5次极性",
+			"target": 5,
+			"current": 0,
+			"reward": "极性改造费用-50%",
+			"unlocked": false
+		},
+		"deck_master": {
+			"title": "卡组大师",
+			"description": "创建10种不同卡组",
+			"target": 10,
+			"current": 0,
+			"reward": "卡组槽位+1",
+			"unlocked": false
+		},
+		"penetration_master": {
+			"title": "穿透大师",
+			"description": "累计触发100次穿透",
+			"target": 100,
+			"current": 0,
+			"reward": "穿透Mod效果+10%",
+			"unlocked": false
+		},
+		"crit_master": {
+			"title": "暴击大师",
+			"description": "累计触发80次暴击",
+			"target": 80,
+			"current": 0,
+			"reward": "暴击率+1%",
+			"unlocked": false
+		}
+	}
 
 # 更新任务进度
 func update_quest_progress(quest_type: String, amount: int = 1):
-	for quest_id in quest_database:
-		var quest = quest_database[quest_id]
-		if quest.status != QuestStatus.ACTIVE:
-			continue
-		
-		# 检查任务类型匹配
-		var matches = false
-		match quest_type:
-			"combo":
-				matches = quest.id.contains("combo")
-			"crit":
-				matches = quest.id.contains("crit")
-			"kill":
-				matches = quest.id.contains("kill")
-			"survive":
-				matches = quest.id.contains("survive")
-			"level":
-				matches = quest.id.contains("level")
-		
-		if matches:
-			quest.progress += amount
-			quest.progress = min(quest.progress, quest.target)
+	# 更新每日任务
+	for quest in daily_quests:
+		if quest.mod_type == quest_type and quest.id not in completed_daily_quests:
+			quest.current += amount
+			if quest.current >= quest.target:
+				complete_quest(quest.id)
+	
+	# 更新成就
+	for achievement_id in achievements:
+		var achievement = achievements[achievement_id]
+		if not achievement.unlocked:
+			if achievement_id == "penetration_master" and quest_type == "penetration":
+				achievement.current += amount
+			elif achievement_id == "crit_master" and quest_type == "crit":
+				achievement.current += amount
 			
-			# 检查是否完成
-			if quest.progress >= quest.target:
-				complete_quest(quest_id)
+			if achievement.current >= achievement.target:
+				unlock_achievement(achievement_id)
 
 # 完成任务
 func complete_quest(quest_id: String):
-	if not quest_id in quest_database:
+	var quest = get_quest_by_id(quest_id)
+	if not quest:
 		return
 	
-	var quest = quest_database[quest_id]
-	quest.status = QuestStatus.COMPLETED
-	
-	# 发出完成信号
-	emit_signal("quest_completed", quest_id, get_quest_reward(quest))
-	
-	# 如果是成就，添加到已完成列表
-	if quest.quest_type == QuestType.ACHIEVEMENT:
-		completed_achievements.append(quest_id)
-		emit_signal("achievement_unlocked", quest_id, get_quest_reward(quest))
-	
 	print("任务完成: ", quest.title)
-
-# 领取任务奖励
-func claim_quest_reward(quest_id: String) -> bool:
-	if not quest_id in quest_database:
-		return false
-	
-	var quest = quest_database[quest_id]
-	if quest.status != QuestStatus.COMPLETED:
-		return false
 	
 	# 发放奖励
-	give_quest_reward(quest)
+	if quest.reward_gold > 0:
+		var game_manager = get_node_or_null("/root/Main/GameManager")
+		if game_manager:
+			game_manager.add_score(quest.reward_gold)
 	
-	# 更新状态
-	quest.status = QuestStatus.CLAIMED
+	# 应用Mod经验加成
+	if quest.reward_mod_exp > 0:
+		apply_mod_exp_bonus(quest.mod_type, quest.reward_mod_exp)
 	
-	# 如果是每日任务，重置进度
-	if quest.quest_type == QuestType.DAILY and quest.is_repeatable:
-		quest.progress = 0
-		quest.status = QuestStatus.ACTIVE
+	# 标记为已完成
+	completed_daily_quests.append(quest_id)
 	
-	return true
+	# 发出完成信号
+	emit_signal("quest_completed", quest_id, quest.reward_gold)
 
-# 获取任务奖励
-func get_quest_reward(quest: QuestData) -> Dictionary:
-	return {
-		"type": quest.reward_type,
-		"value": quest.reward_value,
-		"item": quest.reward_item
-	}
-
-# 发放任务奖励
-func give_quest_reward(quest: QuestData):
-	match quest.reward_type:
-		"gold":
-			# 通过游戏管理器添加金币
-			var game_manager = get_node_or_null("/root/Main/GameManager")
-			if game_manager:
-				game_manager.add_score(quest.reward_value)
-			print("获得金币: ", quest.reward_value)
-		"diamond":
-			GameAttributes.diamonds += quest.reward_value
-			print("获得钻石: ", quest.reward_value)
-		"mod":
-			if quest.reward_item != "":
-				ModSystem.add_mod_to_inventory(quest.reward_item)
-				print("获得MOD: ", quest.reward_item)
-		"permanent":
-			# 永久属性提升
-			apply_permanent_bonus(quest.reward_item, quest.reward_value)
-			print("永久属性提升: ", quest.reward_item, " +", quest.reward_value, "%")
-
-# 应用永久属性加成
-func apply_permanent_bonus(attribute: String, value: int):
-	match attribute:
-		"combo_chance":
-			GameAttributes.double_shot_chance += value * 0.01
-			GameAttributes.triple_shot_chance += value * 0.01
-		"crit_chance":
-			GameAttributes.crit_chance += value * 0.01
-
-# 检查每日任务重置
-func check_daily_reset():
-	var current_time = Time.get_unix_time_from_system()
-	var current_datetime = Time.get_datetime_dict_from_unix_time(current_time)
-	var last_datetime = Time.get_datetime_dict_from_unix_time(last_reset_time)
+# 解锁成就
+func unlock_achievement(achievement_id: String):
+	var achievement = achievements[achievement_id]
+	if not achievement or achievement.unlocked:
+		return
 	
-	if current_datetime["day"] != last_datetime["day"]:
-		reset_daily_quests()
-		last_reset_time = int(current_time)
+	achievement.unlocked = true
+	unlocked_achievements.append(achievement_id)
+	
+	print("成就解锁: ", achievement.title)
+	print("奖励: ", achievement.reward)
+	
+	# 应用成就奖励
+	apply_achievement_reward(achievement_id, achievement.reward)
+	
+	emit_signal("achievement_unlocked", achievement_id)
+
+# 应用Mod经验加成
+func apply_mod_exp_bonus(mod_type: String, bonus: float):
+	# 这里需要与Mod系统集成
+	print("Mod经验加成: ", mod_type, " +", bonus * 100, "%")
+
+# 应用成就奖励
+func apply_achievement_reward(achievement_id: String, reward: String):
+	match achievement_id:
+		"mod_collector":
+			# 容量上限+2
+			var mod_system = get_node_or_null("/root/ModSystem")
+			if mod_system:
+				mod_system.add_capacity_bonus(2)
+		"polarity_expert":
+			# 极性改造费用-50%
+			# 这里需要与Mod系统集成
+			pass
+		"deck_master":
+			# 卡组槽位+1
+			# 这里需要与Mod系统集成
+			pass
+		"penetration_master":
+			# 穿透Mod效果+10%
+			# 这里需要与Mod系统集成
+			pass
+		"crit_master":
+			# 暴击率+1%
+			var game_attributes = get_node_or_null("/root/GameAttributes")
+			if game_attributes:
+				game_attributes.crit_chance += 0.01
+
+# 获取任务信息
+func get_quest_by_id(quest_id: String):
+	for quest in daily_quests:
+		if quest.id == quest_id:
+			return quest
+	return null
+
+# 获取所有每日任务
+func get_daily_quests():
+	return daily_quests
+
+# 获取所有成就
+func get_achievements():
+	return achievements
+
+# 获取已解锁成就
+func get_unlocked_achievements():
+	return unlocked_achievements
 
 # 重置每日任务
 func reset_daily_quests():
-	for quest_id in quest_database:
-		var quest = quest_database[quest_id]
-		if quest.quest_type == QuestType.DAILY:
-			quest.progress = 0
-			quest.status = QuestStatus.ACTIVE
-	
+	completed_daily_quests.clear()
+	for quest in daily_quests:
+		quest.current = 0
 	emit_signal("daily_quests_reset")
-	print("每日任务已重置")
 
-# 获取活跃任务列表
-func get_active_quests() -> Array:
-	var active_list = []
-	for quest_id in active_quests:
-		if quest_id in quest_database:
-			var quest = quest_database[quest_id]
-			if quest.status == QuestStatus.ACTIVE or quest.status == QuestStatus.COMPLETED:
-				active_list.append(quest)
-	return active_list
-
-# 获取已完成任务列表
-func get_completed_quests() -> Array:
-	var completed_list = []
-	for quest_id in quest_database:
-		var quest = quest_database[quest_id]
-		if quest.status == QuestStatus.COMPLETED or quest.status == QuestStatus.CLAIMED:
-			completed_list.append(quest)
-	return completed_list
-
-# 获取成就列表
-func get_achievements() -> Array:
-	var achievement_list = []
-	for quest_id in quest_database:
-		var quest = quest_database[quest_id]
-		if quest.quest_type == QuestType.ACHIEVEMENT:
-			achievement_list.append(quest)
-	return achievement_list
-
-# 保存任务进度
-func save_quest_progress():
+# 保存进度
+func save_progress():
 	var save_data = {
-		"active_quests": active_quests,
-		"completed_achievements": completed_achievements,
-		"last_reset_time": last_reset_time,
-		"quest_progress": {}
+		"completed_daily_quests": completed_daily_quests,
+		"achievements": achievements,
+		"unlocked_achievements": unlocked_achievements
 	}
 	
-	# 保存每个任务的进度
-	for quest_id in quest_database:
-		var quest = quest_database[quest_id]
-		save_data.quest_progress[quest_id] = {
-			"progress": quest.progress,
-			"status": quest.status
-		}
-	
-	# 保存到文件
-	var file = FileAccess.open("user://quest_progress.json", FileAccess.WRITE)
-	if file:
-		file.store_string(JSON.stringify(save_data))
-		file.close()
+	var save_file = FileAccess.open("user://quest_progress.save", FileAccess.WRITE)
+	if save_file:
+		save_file.store_string(JSON.stringify(save_data))
+		save_file.close()
 
-# 加载任务进度
-func load_quest_progress():
-	var file = FileAccess.open("user://quest_progress.json", FileAccess.READ)
-	if not file:
+# 加载进度
+func load_progress():
+	if not FileAccess.file_exists("user://quest_progress.save"):
 		return
 	
-	var json_string = file.get_as_text()
-	file.close()
-	
-	var json = JSON.new()
-	var parse_result = json.parse(json_string)
-	if parse_result != OK:
-		return
-	
-	var save_data = json.data
-	active_quests = save_data.get("active_quests", [])
-	completed_achievements = save_data.get("completed_achievements", [])
-	last_reset_time = save_data.get("last_reset_time", 0)
-	
-	# 恢复任务进度
-	var quest_progress = save_data.get("quest_progress", {})
-	for quest_id in quest_progress:
-		if quest_id in quest_database:
-			var quest = quest_database[quest_id]
-			var progress_data = quest_progress[quest_id]
-			quest.progress = progress_data.get("progress", 0)
-			quest.status = progress_data.get("status", QuestStatus.ACTIVE)
-
-# 获取任务统计信息
-func get_quest_statistics() -> Dictionary:
-	var stats = {
-		"total_quests": quest_database.size(),
-		"active_quests": 0,
-		"completed_quests": 0,
-		"total_achievements": 0,
-		"unlocked_achievements": completed_achievements.size()
-	}
-	
-	for quest_id in quest_database:
-		var quest = quest_database[quest_id]
-		if quest.status == QuestStatus.ACTIVE:
-			stats.active_quests += 1
-		elif quest.status == QuestStatus.COMPLETED or quest.status == QuestStatus.CLAIMED:
-			stats.completed_quests += 1
+	var save_file = FileAccess.open("user://quest_progress.save", FileAccess.READ)
+	if save_file:
+		var json_string = save_file.get_as_text()
+		save_file.close()
 		
-		if quest.quest_type == QuestType.ACHIEVEMENT:
-			stats.total_achievements += 1
-	
-	return stats
+		var json = JSON.new()
+		var parse_result = json.parse(json_string)
+		
+		if parse_result == OK:
+			var save_data = json.data
+			completed_daily_quests = save_data.get("completed_daily_quests", [])
+			achievements = save_data.get("achievements", {})
+			unlocked_achievements = save_data.get("unlocked_achievements", [])
+
+# 获取任务完成奖励
+func get_quest_reward(quest):
+	return quest.reward_gold

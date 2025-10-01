@@ -18,10 +18,9 @@ config/icon="res://icon.svg"
 [autoload]
 
 GameAttributes="*res://scripts/game_attributes.gd"
-ModSystem="*res://scripts/mod_system.gd"
-SaveSystem="*res://scripts/save_system.gd"
-ModDropSystem="*res://scripts/mod_drop_system.gd"
+LevelManager="*res://scripts/level_manager.gd"
 QuestSystem="*res://scripts/quest_system.gd"
+Talents="*res://scripts/talents.gd"
 
 [display]
 
