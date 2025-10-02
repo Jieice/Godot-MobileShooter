@@ -105,7 +105,7 @@ var talent_definitions = {
 		"descriptions": ["精英优先率+30%", "精英优先率+50%", "精英优先率+70%"]
 	},
 	"kill_energy": {
-		"name": "击杀回能概率",
+		"name": "击杀回血概率",
 		"tree": "utility",
 		"max_level": 3,
 		"cost_per_level": [1, 1, 1],
@@ -115,14 +115,14 @@ var talent_definitions = {
 			{"attribute": "kill_energy_chance", "value": 0.60}, # 2级：+60%
 			{"attribute": "kill_energy_chance", "value": 0.80} # 3级：+80%
 		],
-		"descriptions": ["击杀回能概率+40%", "击杀回能概率+60%", "击杀回能概率+80%"]
+		"descriptions": ["击杀回血概率+40%", "击杀回血概率+60%", "击杀回血概率+80%"]
 	},
 	"dual_target": {
 		"name": "双目标锁定",
 		"tree": "utility",
 		"max_level": 1,
 		"cost_per_level": [3],
-		"required_levels": [25],
+		"required_levels": [25], # 恢复为25级
 		"effects": [
 			{"attribute": "dual_target_enabled", "value": true}
 		],
