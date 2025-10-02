@@ -9,25 +9,36 @@ var _active_tab_index = 0 # 追踪当前激活的 BottomPanel Tab 索引 (0: 属
 var _is_2x_speed_active = false # 追踪2倍速状态
 
 func _ready():
-	print("UIManager: _ready() called")
+	# print("UIManager: _ready() called")
 	add_to_group("ui_manager")
-	print("UI管理器初始化开始")
+	# print("UI管理器初始化开始")
+	
+	# 连接重新开始按钮并加调试输出
+	var restart_btn = get_node_or_null("GameOverPanel/RestartButton")
+	print("UIManager: restart_btn = ", restart_btn)
+	if restart_btn:
+		for c in restart_btn.get_signal_connection_list("pressed"):
+			restart_btn.disconnect("pressed", c.target)
+		restart_btn.connect("pressed", Callable(GameManager, "restart_game"))
+		print("UIManager: RestartButton signal connected to GameManager.restart_game")
+	else:
+		print("UIManager: RestartButton not found!")
 	
 	var bottom_panel = _get_bottom_panel()
 	if bottom_panel:
 		# 连接TabContainer的tab_changed信号，用于调试和确认tab切换事件
 		bottom_panel.connect("tab_changed", Callable(self, "_on_bottom_panel_tab_changed"))
-		print("UIManager: BottomPanel tab_changed signal connected.")
+		# print("UIManager: BottomPanel tab_changed signal connected.")
 	# 获取玩家引用
 	_player = get_node("../Player")
 	if not _player:
-		print("UIManager: 警告: 无法找到Player节点")
+		# print("UIManager: 警告: 无法找到Player节点")
 		return
 	
 	# 获取游戏管理器引用
 	_game_manager = get_node("../GameManager")
 	if not _game_manager:
-		print("UIManager: 警告: 无法找到GameManager节点")
+		# print("UIManager: 警告: 无法找到GameManager节点")
 		return
 	
 	# 连接信号
@@ -49,17 +60,16 @@ func _ready():
 	var game_over_panel = get_node_or_null("GameOverPanel")
 	if game_over_panel:
 		game_over_panel.visible = false
-		print("UIManager: GameOverPanel set to visible = false in _ready()")
-	else:
-		print("UIManager: GameOverPanel not found in _ready()")
-	
+		# print("UIManager: GameOverPanel set to visible = false in _ready()")
+	#else:
+		# print("UIManager: GameOverPanel not found in _ready()")
 	# 检查UI节点是否存在（只在初始化时打印一次）
-	print("UIManager: UI管理器初始化完成")
-	print("UIManager:   - InGameLevelInfo/InGameLevel: ", has_node("InGameLevelInfo/InGameLevel"))
-	print("UIManager:   - InGameLevelInfo/ExpLabel: ", has_node("InGameLevelInfo/ExpLabel"))
-	print("UIManager:   - InGameLevelInfo/ExpBar: ", has_node("InGameLevelInfo/ExpBar"))
-	print("UIManager:   - PlayerLevel: ", has_node("PlayerLevel"))
-	print("UIManager:   - ScoreLabel: ", has_node("ScoreLabel"))
+	# print("UIManager: UI管理器初始化完成")
+	# print("UIManager:   - InGameLevelInfo/InGameLevel: ", has_node("InGameLevelInfo/InGameLevel"))
+	# print("UIManager:   - InGameLevelInfo/ExpLabel: ", has_node("InGameLevelInfo/ExpLabel"))
+	# print("UIManager:   - InGameLevelInfo/ExpBar: ", has_node("InGameLevelInfo/ExpBar"))
+	# print("UIManager:   - PlayerLevel: ", has_node("PlayerLevel"))
+	# print("UIManager:   - ScoreLabel: ", has_node("ScoreLabel"))
 	# 初始化钻石显示
 	_on_diamonds_changed(GameAttributes.diamonds)
 	# 初始化金币显示
@@ -136,10 +146,10 @@ func _initialize_ui():
 		if level_manager:
 			update_exp_bar(level_manager.player_exp, level_manager.exp_to_next_level)
 		else:
-			print("UIManager: 警告: _initialize_ui 无法找到LevelManager来初始化经验条")
+			# print("UIManager: 警告: _initialize_ui 无法找到LevelManager来初始化经验条")
+			pass
 	
 	
-
 # 更新血条
 func update_health_bar(current_health: float, max_health: float):
 	if has_node("HealthBar"):
@@ -150,17 +160,18 @@ func update_health_bar(current_health: float, max_health: float):
 
 # 更新玩家等级显示
 func update_player_level():
-	print("UIManager: update_player_level() called")
+	# print("UIManager: update_player_level() called")
 	var level_manager = get_node("/root/LevelManager")
 	if has_node("PlayerLevel") and level_manager:
 		var level_text = "等级: " + str(level_manager.player_level) + "/" + str(level_manager.player_max_level)
 		$PlayerLevel.text = level_text
-		print("UIManager: 更新玩家等级到: ", level_text, " (从LevelManager获取: ", level_manager.player_level, "/", level_manager.player_max_level, ")")
+		# print("UIManager: 更新玩家等级到: ", level_text, " (从LevelManager获取: ", level_manager.player_level, "/", level_manager.player_max_level, ")")
 		
 		# 同步到GameAttributes (已移除此冗余同步)
 		# GameAttributes.player_level = level_manager.player_level
 	else:
-		print("UIManager: 警告: 无法更新PlayerLevel，节点或LevelManager缺失")
+		# print("UIManager: 警告: 无法更新PlayerLevel，节点或LevelManager缺失")
+		pass
 
 # 更新经验条
 func update_exp_bar(current_exp: int, required_exp: int):
@@ -183,7 +194,7 @@ func update_exp_bar(current_exp: int, required_exp: int):
 
 # 处理游戏结束信号
 func _on_game_over_triggered(final_score: int):
-	print("UI Manager 收到游戏结束信号，最终得分: ", final_score)
+	# print("UI Manager 收到游戏结束信号，最终得分: ", final_score)
 	var game_over_panel = get_node_or_null("GameOverPanel")
 	if game_over_panel:
 		game_over_panel.visible = true
@@ -193,7 +204,7 @@ func _on_game_over_triggered(final_score: int):
 			
 # 处理游戏重启信号
 func _on_game_restarted():
-	print("UI Manager 收到游戏重启信号")
+	# print("UI Manager 收到游戏重启信号")
 	var game_over_panel = get_node_or_null("GameOverPanel")
 	if game_over_panel:
 		game_over_panel.visible = false
@@ -202,7 +213,7 @@ func _on_game_restarted():
 	_on_diamonds_changed(GameAttributes.diamonds)
 
 func _on_diamonds_changed(new_diamonds: int):
-	print("UI Manager 收到钻石变化信号: ", new_diamonds)
+	# print("UI Manager 收到钻石变化信号: ", new_diamonds)
 	var diamond_label = get_node_or_null("DiamondLabel")
 	if diamond_label:
 		diamond_label.text = "钻石: " + str(new_diamonds)
@@ -445,34 +456,30 @@ func _on_player_damaged(_damage: float):
 func _on_score_updated(new_score: int):
 	$ScoreLabel.text = "金币: " + str(new_score)
 
-func _on_quest_completed(quest_id: String, reward: int):
-	print("任务完成: ", quest_id, " 奖励: ", reward)
-
-func _on_achievement_unlocked(achievement_id: String):
-	print("成就解锁: ", achievement_id)
-
-func _on_daily_quests_reset():
-	print("每日任务已重置")
-
+#func _on_quest_completed(quest_id: String, reward: int):
+#    pass
+#func _on_achievement_unlocked(achievement_id: String):
+	# print("成就解锁: ", achievement_id) # 精简日志，删除
+#func _on_daily_quests_reset():
+#    pass
 func _on_player_level_up(level):
-	print("UIManager: _on_player_level_up(", level, ") called")
-	print("UIManager: 玩家升级到 ", level, " 级")
-	
+	# print("UIManager: _on_player_level_up(", level, ") called") # 精简日志，删除
+	# print("UIManager: 玩家升级到 ", level, " 级") # 精简日志，删除
 	# 刷新天赋面板UI (如果有天赋点可用，并且天赋面板存在)
 	var talent_panel = get_node_or_null("BottomPanel/天赋")
 	if talent_panel and talent_panel.has_method("_refresh"):
 		talent_panel._refresh()
 
 func _on_level_started(level_number, level_data):
-	print("UIManager: _on_level_started(", level_number, ", ", level_data, ") called")
+	# print("UIManager: _on_level_started(", level_number, ", ", level_data, ") called") # 精简日志，删除
 	update_level_display()
 	
 func _on_level_progress_updated(current_progress, target_progress):
-	print("UIManager: _on_level_progress_updated(", current_progress, ", ", target_progress, ") called")
+	# print("UIManager: _on_level_progress_updated(", current_progress, ", ", target_progress, ") called") # 精简日志，删除
 	update_level_progress(current_progress, target_progress)
 
 func _on_game_attribute_changed(attribute_name: String, value):
-	print("UIManager: _on_game_attribute_changed(", attribute_name, ", ", value, ") called")
+	# print("UIManager: _on_game_attribute_changed(", attribute_name, ", ", value, ") called")
 	match attribute_name:
 		"health":
 			update_health_bar(value, GameAttributes.max_health)
@@ -487,8 +494,8 @@ func _on_game_attribute_changed(attribute_name: String, value):
 		# 可以根据需要添加其他属性的更新逻辑
 
 func _on_talent_points_changed(talent_points):
-	print("UIManager: _on_talent_points_changed(", talent_points, ") called")
-	print("UIManager: 天赋点变化: ", talent_points)
+	# print("UIManager: _on_talent_points_changed(", talent_points, ") called")
+	# print("UIManager: 天赋点变化: ", talent_points)
 	# 更新天赋点显示
 	if has_node("BottomPanel/天赋/TalentPointsLabel"):
 		$BottomPanel / 天赋 / TalentPointsLabel.text = "可用天赋点: " + str(talent_points) + " (每级获得1点)"
@@ -544,7 +551,7 @@ func _on_ui_update_timer_timeout():
 
 # 更新关卡显示（兼容旧调用方式）
 func update_level_display(_level_number = null, _level_data = null):
-	print("UIManager: update_level_display() called")
+	# print("UIManager: update_level_display() called")
 	var level_manager = get_node("/root/LevelManager")
 	if has_node("InGameLevelInfo/InGameLevel") and level_manager:
 		var current_level_val = level_manager.current_level
@@ -553,18 +560,20 @@ func update_level_display(_level_number = null, _level_data = null):
 		var minor_level = ((current_level_val - 1) % 5) + 1
 		var level_text = "关卡: " + str(major_level) + "-" + str(minor_level)
 		$InGameLevelInfo/InGameLevel.text = level_text
-		print("UIManager: 更新关卡显示到: ", level_text, " (从LevelManager获取: ", current_level_val, ")")
+		# print("UIManager: 更新关卡显示到: ", level_text, " (从LevelManager获取: ", current_level_val, ")")
 	else:
-		print("UIManager: 警告: 无法更新InGameLevel，节点或LevelManager缺失")
+		# print("UIManager: 警告: 无法更新InGameLevel，节点或LevelManager缺失")
+		pass
 	
 	# 同时更新关卡进度条
 	if level_manager:
 		var current_progress_val = level_manager.current_progress
 		var target_progress_val = level_manager.target_progress
 		update_level_progress(current_progress_val, target_progress_val)
-		print("UIManager: 调用 update_level_progress: current=", current_progress_val, ", target=", target_progress_val)
+		# print("UIManager: 调用 update_level_progress: current=", current_progress_val, ", target=", target_progress_val)
 	else:
-		print("UIManager: 警告: 无法更新关卡进度条，LevelManager缺失")
+		# print("UIManager: 警告: 无法更新关卡进度条，LevelManager缺失")
+		pass
 
 # 更新关卡进度条
 func update_level_progress(current_progress: int, target_progress: int):
@@ -588,10 +597,10 @@ func update_level_progress(current_progress: int, target_progress: int):
 
 # 更新经验显示
 func update_exp_display():
-	print("UIManager: update_exp_display() called")
+	# print("UIManager: update_exp_display() called")
 	var level_manager = get_node("/root/LevelManager")
 	if not level_manager:
-		print("UIManager: 警告: update_exp_display 无法找到LevelManager")
+		# print("UIManager: 警告: update_exp_display 无法找到LevelManager")
 		return
 	
 	# 使用LevelManager的经验数据，而不是GameAttributes
@@ -624,14 +633,16 @@ func update_exp_display():
 		else:
 			exp_bar.color = Color(0.2, 0.6, 1.0, 1) # 蓝色
 	else:
-		print("UIManager: ⚠️ 经验条节点不存在: InGameLevelInfo/ExpBar")
+		# print("UIManager: ⚠️ 经验条节点不存在: InGameLevelInfo/ExpBar")
+		pass
 
 
 # 新增：安全获取 BottomPanel 节点的方法
 func _get_bottom_panel():
 	var bottom_panel = get_node_or_null("BottomPanel")
 	if not bottom_panel:
-		print("UIManager: 警告: 无法找到 BottomPanel 节点")
+		# print("UIManager: 警告: 无法找到 BottomPanel 节点")
+		return
 	return bottom_panel
 
 # 新增：显式切换 BottomPanel 的 Tab
@@ -640,20 +651,21 @@ func switch_bottom_panel_tab(index: int):
 	if bottom_panel:
 		if index >= 0 and index < bottom_panel.get_tab_count():
 			bottom_panel.current_tab = index
-			print("UIManager: 切换 BottomPanel 到 Tab: ", index)
+			# print("UIManager: 切换 BottomPanel 到 Tab: ", index)
 		else:
-			print("UIManager: 警告: 无效的 BottomPanel Tab 索引: ", index)
+			# print("UIManager: 警告: 无效的 BottomPanel Tab 索引: ", index)
+			pass
 
 # 新增：处理 BottomPanel Tab 变化的信号回调（用于调试）
 func _on_bottom_panel_tab_changed(index: int):
-	print("UIManager: BottomPanel Tab 已切换到索引: ", index)
+	# print("UIManager: BottomPanel Tab 已切换到索引: ", index)
 	_active_tab_index = index # 更新激活的Tab索引
 
 # 新增：切换2倍速功能
 func _on_speed_2x_button_pressed():
 	_is_2x_speed_active = not _is_2x_speed_active
 	Engine.time_scale = 2.0 if _is_2x_speed_active else 1.0
-	print("UIManager: 游戏速度切换到: ", Engine.time_scale, "x")
+	# print("UIManager: 游戏速度切换到: ", Engine.time_scale, "x")
 	
 	# 更新按钮文本
 	var speed_button = get_node_or_null("Speed2xButton")
