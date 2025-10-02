@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <!-- 外层能量环 -->
+  <circle cx="60" cy="60" r="50" stroke="url(#gradRing)" stroke-width="6" fill="none" opacity="0.8"/>
+
+  <!-- 内层能量环（更细） -->
+  <circle cx="60" cy="60" r="36" stroke="url(#gradRing)" stroke-width="3" fill="none" opacity="0.6" stroke-dasharray="8 6"/>
+
+  <!-- 核心体 -->
+  <circle cx="60" cy="60" r="20" fill="url(#gradCore)" stroke="#222" stroke-width="2"/>
+
+  <!-- 内部发光 -->
+  <circle cx="60" cy="60" r="10" fill="url(#gradGlow)"/>
+
+  <!-- 高光 -->
+  <circle cx="52" cy="52" r="5" fill="#fff" opacity="0.7"/>
+
+  <!-- 渐变定义 -->
+  <defs>
+    <!-- 环的渐变 -->
+    <linearGradient id="gradRing" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#66f7ff"/>
+      <stop offset="100%" stop-color="#004477"/>
+    </linearGradient>
+
+    <!-- 核心体渐变 -->
+    <radialGradient id="gradCore" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#00c8ff"/>
+      <stop offset="100%" stop-color="#003344"/>
+    </radialGradient>
+
+    <!-- 内部发光 -->
+    <radialGradient id="gradGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fff" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#00e6ff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+</svg>

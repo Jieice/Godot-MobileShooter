@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <!-- 花瓣 -->
+  <circle cx="60" cy="60" r="40" fill="url(#gradPetal)" stroke="#224422" stroke-width="3"/>
+  
+  <!-- 裂纹花瓣纹理 -->
+  <path d="M30 60 Q60 40 90 60" stroke="#335533" stroke-width="2" fill="none"/>
+  <path d="M40 80 Q60 65 80 80" stroke="#335533" stroke-width="2" fill="none"/>
+  
+  <!-- 毒核心 -->
+  <circle cx="60" cy="60" r="15" fill="url(#gradVenom)" stroke="#113322" stroke-width="2"/>
+  
+  <!-- 高光 -->
+  <circle cx="55" cy="55" r="5" fill="#fff" opacity="0.6"/>
+
+  <defs>
+    <!-- 花瓣渐变 -->
+    <radialGradient id="gradPetal" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#447744"/>
+      <stop offset="100%" stop-color="#224422"/>
+    </radialGradient>
+    <!-- 毒核心渐变 -->
+    <radialGradient id="gradVenom" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#88ff88"/>
+      <stop offset="100%" stop-color="#117711"/>
+    </radialGradient>
+  </defs>
+</svg>

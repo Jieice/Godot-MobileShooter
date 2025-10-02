@@ -4,6 +4,9 @@ extends Node2D
 @export var spawn_interval = 1.0 # 初始敌人生成间隔时间（秒），该值会随难度增加而减少
 @export var min_spawn_interval = 0.5 # 最小敌人生成间隔时间，生成间隔不会低于此值
 @export var difficulty_increase_rate = 0.05 # 难度增加率，分数越高，生成间隔减少越快
+@export var enemy_normal_scene: PackedScene
+@export var enemy_elite_scene: PackedScene
+@export var enemy_boss_scene: PackedScene
 
 # 关卡系统相关变量，由 LevelManager 配置
 var health_multiplier = 1.0 # 敌人生命值乘数，由 LevelManager 根据关卡难度设置
@@ -121,7 +124,7 @@ func start_level():
 	wave_count = 0
 	current_wave_enemies = 0
 	spawn_active = true # 确保生成激活
-	print("敌人生成器：开始关卡 " + str(current_level))
+	print("[EnemySpawner] start_level() called, wave_count reset to 0, current_level=", current_level)
 	
 	# 确保定时器存在并启动（如果不存在则创建，通常在 _ready() 中已创建）
 	if not spawn_timer:
@@ -143,6 +146,7 @@ func start_level():
 func start_wave():
 	wave_count += 1 # 增加波次计数
 	current_wave_enemies = 0 # 重置当前波次敌人计数
+	print("[EnemySpawner] start_wave() called, wave_count=", wave_count, ", current_level=", current_level)
 	
 	# 通知 LevelManager 新波次开始，用于 UI 更新和关卡进度管理
 	if level_manager:
@@ -156,28 +160,13 @@ func start_wave():
 	boss_health_multiplier = 3.0
 	boss_scale = 1.5
 	
+	# 偶数关最后一波生成boss
+	has_boss = false
+	if level_num % 2 == 0 and wave_count == max_waves:
+		has_boss = true
+	
 	# 根据关卡编号和波次设置 BOSS 具体特性
 	# BOSS 只有在每关的第5关（例如5，10，15等）的最后一波才出现
-	if level_num % 5 == 0 and wave_count == max_waves:
-		has_boss = true
-		# 可以根据 level_num 动态调整 BOSS 属性，例如：
-		var difficulty_factor = pow(1.1, floor((float(level_num) - 5.0) / 5.0))
-		boss_health_multiplier = 3.0 * difficulty_factor
-		boss_scale = 1.5 + (difficulty_factor - 1.0) * 0.2 # 随难度略微增大体型
-		
-		# 示例：根据关卡增加 BOSS 特殊效果
-		if level_num >= 10:
-			boss_effects.append("red_border")
-		if level_num >= 15:
-			boss_effects.append("speed_burst")
-		if level_num >= 20:
-			boss_effects.append("area_slow")
-		
-		# 可以在这里设置 additional_enemies, 比如每隔几关增加小怪
-		if level_num >= 10 and level_num % 10 == 0:
-			additional_enemies = 2
-	
-	# 如果是最后一波且有 BOSS，则生成 BOSS
 	if wave_count == max_waves and has_boss:
 		spawn_boss()
 		
@@ -191,15 +180,19 @@ func start_wave():
 
 # 生成 BOSS 敌人
 func spawn_boss():
-	var enemy = enemy_scene.instantiate() # 实例化敌人场景
-	enemy.add_to_group("enemies") # 将敌人添加到 "enemies" 组
-	enemy.add_to_group("boss") # 将 BOSS 添加到 "boss" 组
-	
+	print("[spawn_boss] enemy_boss_scene=", enemy_boss_scene)
+	if not enemy_boss_scene:
+		print("[spawn_boss] 错误：enemy_boss_scene未设置！")
+		return
+	var enemy = enemy_boss_scene.instantiate()
+	print("[spawn_boss] Boss实例化成功:", enemy)
+	enemy.add_to_group("enemies")
+	enemy.add_to_group("boss")
 	# 设置 BOSS 属性
-	enemy.target = player # 设置 BOSS 的目标为玩家
-	enemy.health *= boss_health_multiplier * health_multiplier # 应用 BOSS 生命值乘数和关卡难度乘数
-	enemy.speed *= speed_multiplier # 应用关卡难度速度乘数
-	enemy.scale = Vector2(boss_scale, boss_scale) # 应用 BOSS 缩放比例
+	enemy.target = player
+	enemy.health *= boss_health_multiplier * health_multiplier
+	enemy.speed *= speed_multiplier
+	enemy.scale = Vector2(boss_scale, boss_scale)
 	
 	# 应用 BOSS 特殊效果（如红色边框、加速、范围减速）
 	if "red_border" in boss_effects:
@@ -221,24 +214,25 @@ func spawn_boss():
 	
 	# 随机生成 BOSS 位置（屏幕外围）
 	var spawn_position = Vector2.ZERO
-	var rand_side = randi() % 4 # 随机选择屏幕的四条边之一
-	
+	var rand_side = randi() % 4 # 0: 上, 1: 右, 2: 下, 3: 左
 	match rand_side:
-		0: # 上边
-			spawn_position.x = screen_size.x / 2
-			spawn_position.y = -100 # 在屏幕上方外 100 像素处生成
-		1: # 右边
-			spawn_position.x = screen_size.x + 100 # 在屏幕右方外 100 像素处生成
-			spawn_position.y = screen_size.y / 2
-		2: # 下边
-			spawn_position.x = screen_size.x / 2
-			spawn_position.y = screen_size.y + 100 # 在屏幕下方外 100 像素处生成
-		3: # 左边
-			spawn_position.x = -100 # 在屏幕左方外 100 像素处生成
-			spawn_position.y = screen_size.y / 2
-	
-	# 设置 BOSS 敌人的全局位置
-	enemy.global_position = spawn_position
+		0:
+			spawn_position.x = randf_range(0, screen_size.x)
+			spawn_position.y = -50
+		1:
+			spawn_position.x = screen_size.x + 50
+			spawn_position.y = randf_range(0, screen_size.y)
+		2:
+			spawn_position.x = randf_range(0, screen_size.x)
+			spawn_position.y = screen_size.y + 50
+		3:
+			spawn_position.x = -50
+			spawn_position.y = randf_range(0, screen_size.y)
+	enemy.position = spawn_position
+	add_child(enemy)
+	enemy.global_position = enemy.position
+	enemy.target = player
+	print("[spawn_boss] enemy.target=", enemy.target, " player=", player, " 位置:", enemy.position)
 	
 	# 连接 BOSS 死亡信号到 GameManager (增加分数) 和 LevelManager (更新进度和经验)
 	enemy.connect("enemy_died", Callable(get_node("/root/Main/GameManager"), "add_score").bind(enemy.score_value))
@@ -252,6 +246,7 @@ func spawn_boss():
 
 # 敌人生成定时器超时时调用
 func _on_spawn_timer_timeout():
+	print("定时器超时，尝试生成敌人，spawn_active=", spawn_active)
 	if not spawn_active:
 		return # 如果生成不活跃，则不执行任何操作
 
@@ -289,109 +284,70 @@ func _on_wave_timer_timeout():
 
 # 生成普通敌人（is_boss 参数用于区分普通敌人和 BOSS，但 BOSS 通常通过 spawn_boss() 单独生成）
 func spawn_enemy(is_boss = false):
-	if not enemy_scene:
-		print("错误：敌人场景未设置，请在编辑器中设置 'enemy_scene' 属性")
-		return
-		
-	if not player:
-		player = get_node_or_null("../Player") # 尝试再次获取玩家引用
-		if not player:
-			print("错误：找不到玩家节点，无法生成敌人")
+	print("调用 spawn_enemy，is_boss=", is_boss)
+	var enemy = null
+	var type_str = "normal"
+	# 50%概率生成精英怪
+	if not is_boss and randf() < 0.5:
+		type_str = "elite"
+		print("[spawn_enemy] 生成精英怪 type_str=elite")
+	if is_boss:
+		if not enemy_boss_scene:
+			print("[spawn_enemy] 错误：Boss敌人场景未设置")
 			return
-	
-	if not player.is_alive:
-		return # 如果玩家已死亡，则不生成敌人
-
-	var is_elite = false
-	if randf() < 0.05: # 5% 的几率生成精英敌人
-		is_elite = true
-
-	# 实例化敌人场景
-	var enemy = enemy_scene.instantiate()
-	
-	# 将敌人添加到 "enemies" 组
-	enemy.add_to_group("enemies")
-	if is_boss:
-		enemy.add_to_group("boss") # 如果是 BOSS，也添加到 "boss" 组
-	
-	# 设置敌人目标为玩家
-	enemy.target = player
-	
-	# 根据是否是 BOSS 或精英，或者随机选择普通敌人类型来配置敌人属性
-	var type_config
-	if is_boss:
-		type_config = enemy_types["boss"]
-		# 应用 BOSS 特殊效果和属性（这些值应该由 LevelManager 在 start_level() 中设置）
-		enemy.health *= boss_health_multiplier * health_multiplier
-		enemy.speed *= speed_multiplier
-		enemy.scale = Vector2(boss_scale, boss_scale)
-		
-		# 应用 BOSS 特殊视觉和行为效果
-		if "red_border" in boss_effects:
-			var outline = enemy.get_node_or_null("Outline")
-			if not outline:
-				outline = Sprite2D.new()
-				outline.texture = enemy.get_node("Sprite2D").texture
-				outline.scale = Vector2(1.1, 1.1)
-				outline.modulate = Color(1, 0, 0, 0.5)
-				outline.z_index = -1
-				enemy.add_child(outline)
-				outline.name = "Outline"
-		
-	if is_elite:
-		type_config = enemy_types["elite"]
-		enemy.get_node("Sprite2D").modulate = type_config.color
-		enemy.scale = Vector2(type_config.scale, type_config.scale)
-		enemy.health = enemy.health * type_config.health_mod * health_multiplier
-		enemy.speed = enemy.speed * type_config.speed_mod * speed_multiplier
-		enemy.damage = enemy.damage * type_config.damage_mod
+		enemy = enemy_boss_scene.instantiate()
+		print("[spawn_enemy] Boss实例化成功:", enemy)
 	else:
-		# 随机选择普通敌人类型（排除 BOSS 类型）
-		var enemy_type_keys = enemy_types.keys()
-		enemy_type_keys.erase("boss") # 移除 BOSS 类型，BOSS 单独生成
-		enemy_type_keys.erase("elite") # 移除 elite 类型，精英敌人单独生成
-		var selected_type = enemy_type_keys[randi() % enemy_type_keys.size()] # 随机选择一个类型
-		type_config = enemy_types[selected_type]
-		
-		# 应用敌人类型属性和关卡难度乘数
-		enemy.get_node("Sprite2D").modulate = type_config.color
-		enemy.scale = Vector2(type_config.scale, type_config.scale)
-		enemy.health = enemy.health * type_config.health_mod * health_multiplier
-		enemy.speed = enemy.speed * type_config.speed_mod * speed_multiplier
-		enemy.damage = enemy.damage * type_config.damage_mod
-	
-	enemy.score_value = type_config.score # 设置敌人死亡时提供的分数和经验值
-	
+		if type_str == "elite":
+			if not enemy_elite_scene:
+				print("[spawn_enemy] 错误：精英敌人场景未设置，enemy_elite_scene=", enemy_elite_scene)
+				return
+			enemy = enemy_elite_scene.instantiate()
+			print("[spawn_enemy] 精英敌人实例化成功:", enemy)
+		else:
+			if not enemy_normal_scene:
+				print("[spawn_enemy] 错误：普通敌人场景未设置，enemy_normal_scene=", enemy_normal_scene)
+				return
+			enemy = enemy_normal_scene.instantiate()
+			print("[spawn_enemy] 普通敌人实例化成功:", enemy)
+	# 设置类型字段
+	enemy.enemy_type = type_str
+	# 其余属性配置可根据type_str查表
+	var type_config = enemy_types[type_str] if enemy_types.has(type_str) else enemy_types["normal"]
+	enemy.get_node("Sprite2D").modulate = type_config.color
+	enemy.scale = Vector2(type_config.scale, type_config.scale)
+	enemy.health = enemy.health * type_config.health_mod * health_multiplier
+	enemy.speed = enemy.speed * type_config.speed_mod * speed_multiplier
+	enemy.damage = enemy.damage * type_config.damage_mod
+	enemy.score_value = type_config.score
 	# 连接敌人死亡信号到 GameManager (增加分数) 和 LevelManager (更新进度和经验)
 	enemy.connect("enemy_died", Callable(get_node("/root/Main/GameManager"), "add_score").bind(enemy.score_value))
 	if level_manager:
 		enemy.connect("enemy_died", Callable(level_manager, "update_progress")) # 更新关卡进度
-		# 敌人死亡时，玩家获得经验。使用 .bind() 确保只传递 score_value 作为 add_experience 的参数
 		enemy.connect("enemy_died", Callable(level_manager, "add_experience").bind(enemy.score_value))
-	
-	# 随机生成敌人位置（屏幕外围）
+	# 敌人出生在屏幕外围
 	var spawn_position = Vector2.ZERO
-	var rand_side = randi() % 4 # 0: 上, 1: 右, 2: 下, 3: 左
-	
+	var rand_side = randi() % 4
 	match rand_side:
-		0: # 上边
-			spawn_position.x = randf_range(0, screen_size.x) # 随机 X 坐标
-			spawn_position.y = -50 # 在屏幕上方外 50 像素处生成
-		1: # 右边
-			spawn_position.x = screen_size.x + 50 # 在屏幕右方外 50 像素处生成
-			spawn_position.y = randf_range(0, screen_size.y) # 随机 Y 坐标
-		2: # 下边
-			spawn_position.x = randf_range(0, screen_size.x) # 随机 X 坐标
-			spawn_position.y = screen_size.y + 50 # 在屏幕下方外 50 像素处生成
-		3: # 左边
-			spawn_position.x = -50 # 在屏幕左方外 50 像素处生成
-			spawn_position.y = randf_range(0, screen_size.y) # 随机 Y 坐标
-	
-	# 设置敌人位置，并将其添加到场景中 (作为 Main 节点的子节点)
-	enemy.position = spawn_position # 先设置本地位置
-	get_parent().add_child(enemy) # 添加到 Main 节点 (假设 EnemySpawner 是 Main 的子节点)
-	enemy.global_position = spawn_position # 确保全局位置正确
-	
+		0:
+			spawn_position.x = randf_range(0, screen_size.x)
+			spawn_position.y = -50
+		1:
+			spawn_position.x = screen_size.x + 50
+			spawn_position.y = randf_range(0, screen_size.y)
+		2:
+			spawn_position.x = randf_range(0, screen_size.x)
+			spawn_position.y = screen_size.y + 50
+		3:
+			spawn_position.x = -50
+			spawn_position.y = randf_range(0, screen_size.y)
+	enemy.position = spawn_position
+	add_child(enemy)
+	print("[spawn_enemy] add_child后，enemy:", enemy, " 位置:", enemy.position)
+	enemy.global_position = enemy.position
+	enemy.target = player
+	print("[spawn_enemy] enemy.target=", enemy.target, " player=", player, " 位置:", enemy.position)
+	print("生成敌人成功，类型:", type_str, "，位置：", enemy.position)
 	return enemy
 
 func increase_difficulty(score):

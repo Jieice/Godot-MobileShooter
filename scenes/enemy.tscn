@@ -1,7 +1,7 @@
 [gd_scene load_steps=5 format=3 uid="uid://c8j6y4q3xgkwv"]
 
 [ext_resource type="Script" path="res://scripts/enemy.gd" id="1_enemy"]
-[ext_resource type="Texture2D" path="res://assets/sprites/enemy.svg" id="2_enemy_texture"]
+[ext_resource type="Texture2D" path="res://assets/sprites/enemy_eye.svg" id="2_enemy_texture"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_1"]
 radius = 24.0

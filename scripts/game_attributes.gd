@@ -6,15 +6,16 @@ extends Node
 signal attributes_changed(attribute_name, value)
 signal diamonds_changed(new_diamonds) # 新增信号，表示钻石数量已更改
 
-# 玩家属性
-var player_speed = 300
-var health = 100
-var max_health = 100
-var bullet_damage = 5
-var bullet_cooldown = 1.0 # 默认子弹冷却时间（秒），调慢
-var defense = 0.0 # 防御值，减少受到的伤害（0-1之间）
-var penetration = 0.0 # 防御穿透率，无视目标一定比例的防御（0-1之间）
-var auto_fire = true # 自动发射子弹
+# === 可在Inspector中编辑的玩家基础属性（如挂载到场景节点时） ===
+@export var bullet_damage: float = 5.0 # 玩家子弹基础伤害
+@export var bullet_cooldown: float = 0.2 # 子弹冷却时间（秒）
+@export var attack_speed: float = 2 # 攻速倍率
+@export var player_speed: float = 300.0 # 玩家移动速度
+@export var max_health: float = 100.0 # 最大生命值
+@export var health: float = 100.0 # 当前生命值
+@export var defense: float = 0.0 # 防御值，减少受到的伤害（0-1之间）
+@export var penetration: float = 0.0 # 防御穿透率，无视目标一定比例的防御（0-1之间）
+@export var auto_fire = true # 自动发射子弹
 
 # 天赋系统相关属性
 var attack_range = 1.0
@@ -30,11 +31,9 @@ var bleed_damage_per_second = 0.0 # 流血伤害/秒
 var bleed_duration = 0.0 # 流血持续时间
 var fission_chance = 0.0 # 裂变几率
 var dodge_chance = 0.0 # 闪避率
-var attack_speed = 0.5 # 默认攻速倍率，调慢
 var last_stand_shield_enabled = false
 var last_stand_shield_duration = 0.0
 var last_stand_shield_threshold = 0.0
-var elite_priority_chance = 0.0
 var kill_energy_chance = 0.0
 var dual_target_enabled = false
 var chain_lightning_chance = 0.0
@@ -100,7 +99,7 @@ func initialize_attributes():
 	# 只初始化非全局资源，score和diamonds交给_ready处理
 	var _all_attributes = {
 		"bullet_damage": 10,
-		"bullet_cooldown": 0.2,
+		# "bullet_cooldown": 0.2, # 移除，避免覆盖Inspector
 		"defense": 0.0,
 		"penetration": 0.0,
 		"auto_fire": true,
@@ -117,11 +116,10 @@ func initialize_attributes():
 		"bleed_duration": 0.0,
 		"fission_chance": 0.0,
 		"dodge_chance": 0.0,
-		"attack_speed": 1.0,
+		# "attack_speed": 1.0, # 移除，避免覆盖Inspector
 		"last_stand_shield_enabled": false,
 		"last_stand_shield_duration": 0.0,
 		"last_stand_shield_threshold": 0.0,
-		"elite_priority_chance": 0.0,
 		"kill_energy_chance": 0.0,
 		"dual_target_enabled": false,
 		"chain_lightning_chance": 0.0,

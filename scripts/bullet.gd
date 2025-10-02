@@ -65,14 +65,11 @@ func _process(_delta):
 	position += direction * speed * _delta
 
 func _on_body_entered(body):
-	# 添加调试输出
-	print("子弹碰撞到: ", body.name, " 是否为敌人: ", body.is_in_group("enemy"))
-	
 	# 检查碰撞的是否为敌人
 	if body.is_in_group("enemy"):
 		var final_damage = damage
-		var is_boss = body.is_in_group("boss") or (body.scale.x >= 1.3 or body.scale.y >= 1.3)
-		var _is_elite = is_boss or (body.scale.x >= 1.3 or body.scale.y >= 1.3)
+		var is_boss = body.enemy_type == "boss"
+		var is_elite = body.enemy_type == "elite"
 		
 		# 应用精英伤害MOD效果
 		

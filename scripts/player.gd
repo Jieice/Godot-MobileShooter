@@ -331,55 +331,36 @@ func find_nearest_enemy_direction():
 	var enemies = get_tree().get_nodes_in_group("enemy")
 	var nearest_enemy = null
 	var min_distance = INF
-	
-	# 如果没有敌人，随机方向
 	if enemies.size() == 0:
-		return null # 如果没有敌人，返回null，表示不射击
-	
-	# 应用攻击范围天赋 - 只考虑范围内的敌人
-	var max_attack_range = 300.0 * GameAttributes.attack_range # 基础范围300像素
-	
-	# 寻找最近的敌人（在攻击范围内且在屏幕内）
-	# 优先考虑精英敌人（如果有精英优先率天赋）
+		return null
+	var max_attack_range = 300.0 * GameAttributes.attack_range
 	var elite_enemies = []
 	var normal_enemies = []
-	
-	# 获取屏幕尺寸
 	var screen_size = get_viewport_rect().size
-	
 	for enemy in enemies:
 		var distance = global_position.distance_to(enemy.global_position)
-		# 检查敌人是否在屏幕内
 		var enemy_pos = enemy.global_position
-		var is_on_screen = (enemy_pos.x >= 0 and enemy_pos.x <= screen_size.x and
-							enemy_pos.y >= 0 and enemy_pos.y <= screen_size.y)
-		
-		# 只考虑在攻击范围内且在屏幕内的敌人
+		var is_on_screen = (enemy_pos.x >= 0 and enemy_pos.x <= screen_size.x and enemy_pos.y >= 0 and enemy_pos.y <= screen_size.y)
 		if distance <= max_attack_range and is_on_screen:
-			if enemy.is_in_group("boss") or enemy.scale.x >= 1.3 or enemy.scale.y >= 1.3:
+			if enemy.enemy_type == "boss" or enemy.enemy_type == "elite":
 				elite_enemies.append({"enemy": enemy, "distance": distance})
 			else:
 				normal_enemies.append({"enemy": enemy, "distance": distance})
-	
-	# 应用精英优先率天赋
-	var use_elite_priority = randf() <= GameAttributes.elite_priority_chance
-	var target_list = elite_enemies if use_elite_priority and elite_enemies.size() > 0 else normal_enemies
-	
-	# 如果精英优先失败或没有精英，使用普通敌人列表
-	if target_list.size() == 0:
+	var target_list = []
+	if elite_enemies.size() > 0:
+		target_list = elite_enemies
+	elif normal_enemies.size() > 0:
 		target_list = normal_enemies
-	
-	# 从目标列表中找到最近的敌人
+	else:
+		return null
 	for enemy_data in target_list:
 		if enemy_data.distance < min_distance:
 			min_distance = enemy_data.distance
 			nearest_enemy = enemy_data.enemy
-	
-	# 返回朝向最近敌人的方向
 	if nearest_enemy:
 		return (nearest_enemy.global_position - global_position).normalized()
 	else:
-		return null # 如果没有在攻击范围内且在屏幕内的敌人，返回null，表示不射击
+		return null
 
 # 寻找双目标方向
 func find_dual_target_directions():
@@ -409,7 +390,7 @@ func find_dual_target_directions():
 		
 		# 只考虑在攻击范围内且在屏幕内的敌人
 		if distance <= max_attack_range and is_on_screen:
-			if enemy.is_in_group("boss") or enemy.scale.x >= 1.3 or enemy.scale.y >= 1.3:
+			if enemy.enemy_type == "boss" or enemy.enemy_type == "elite":
 				elite_enemies.append({"enemy": enemy, "distance": distance})
 			else:
 				normal_enemies.append({"enemy": enemy, "distance": distance})

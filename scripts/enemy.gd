@@ -9,6 +9,7 @@ signal enemy_died
 @export var defense = 0.0 # 防御值，减少受到的伤害百分比（0-1之间）
 @export var score_value = 10
 @export var attack_cooldown = 1.0 # 攻击冷却时间（秒）
+@export var enemy_type: String = "normal"
 
 var target = null
 var is_alive = true
@@ -33,6 +34,9 @@ var slow_area_radius = 200.0 # 减速范围半径
 var slow_area_factor = 0.5 # 减速因子
 
 func _ready():
+	# 调试：打印Boss关键属性
+	if enemy_type == "boss" or is_in_group("enemy_boss"):
+		print("[Boss _ready] position=", position, " scale=", scale, " visible=", visible, " is_alive=", is_alive, " target=", target, " Sprite2D.visible=", $Sprite2D.visible, " Sprite2D.texture=", $Sprite2D.texture)
 	# 将敌人添加到enemy组，以便玩家可以找到它们
 	add_to_group("enemy")
 	
@@ -64,7 +68,10 @@ func create_bleed_icon():
 	add_child(bleed_icon)
 
 func _physics_process(delta):
+	if enemy_type == "boss" or is_in_group("enemy_boss"):
+		print("[Boss _physics_process] position=", position, " is_alive=", is_alive, " target=", target, " visible=", visible, " Sprite2D.visible=", $Sprite2D.visible)
 	if not is_alive or target == null:
+		print("[enemy.gd] AI未激活，is_alive=", is_alive, " target=", target)
 		return
 	
 	# 计算朝向玩家的方向
@@ -175,7 +182,9 @@ func stop_bleeding():
 		
 # 更新血条显示
 func update_health_bar():
-	var health_bar = $HealthBar
+	var health_bar = get_node_or_null("HealthBar")
+	if health_bar == null:
+		return
 	# 检查是否为BOSS（通过分组或缩放比例判断）
 	var is_boss = is_in_group("boss") or scale.x >= 1.3 or scale.y >= 1.3
 
