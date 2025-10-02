@@ -19,6 +19,7 @@ var player_exp = 0
 var exp_to_next_level = 100
 var talent_points = 0
 var total_talent_points = 0
+var player_attack_speed = 0.5 # 初始攻速（每秒0.5次，2秒1次）
 
 # 关卡进度
 var current_progress = 0
@@ -54,7 +55,7 @@ func get_loop_multiplier():
 	if current_level <= 20:
 		return 1.0
 	
-	var loop_count = floor((float(current_level) - 21.0) / 5.0) + 1
+	var loop_count = floor((float(current_level) - 21.0) / 10.0) + 1
 	return pow(1.1, loop_count)
 
 # 获取当前关卡配置
@@ -147,6 +148,7 @@ func _ready():
 	print("LevelManager: _ready() called")
 	add_to_group("level_manager")
 	print("LevelManager: 初始玩家等级: ", player_level, ", 初始天赋点: ", talent_points, ", 初始关卡: ", current_level)
+	update_player_attributes()
 
 # 开始指定关卡
 func start_level(level_number):
@@ -372,6 +374,12 @@ func update_player_attributes():
 	# var ui_manager = get_node_or_null("/root/Main/HUD")
 	# if ui_manager and ui_manager.has_method("update_player_attributes"):
 	#	ui_manager.update_player_attributes(player)
+
+	# 攻速随等级自动成长，每级+0.02，最大1.5
+	var attack_speed_per_level = 0.02
+	player_attack_speed = 0.5 + (player_level - 1) * attack_speed_per_level
+	player_attack_speed = min(player_attack_speed, 1.5)
+	GameAttributes.update_attribute("attack_speed", player_attack_speed)
 
 # 新增函数：消耗天赋点数
 func spend_talent_points(cost: int):

@@ -48,7 +48,7 @@ func _refresh(_arg = null):
 		hbox.custom_minimum_size = Vector2(0, 60)
 
 		var vbox = VBoxContainer.new()
-		vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		vbox.size_flags_horizontal = Control.SIZE_FILL
 		vbox.add_theme_constant_override("separation", 0)
 		var name_label = Label.new()
 		name_label.text = "%s (Lv.%d/%d)" % [def.name, current_level, def.max_level]

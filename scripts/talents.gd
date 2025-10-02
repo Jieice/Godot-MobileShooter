@@ -49,6 +49,19 @@ var talent_definitions = {
 		],
 		"descriptions": ["暴击率+5%", "暴击率+10%", "暴击率+15%"]
 	},
+	"attack_speed": {
+		"name": "攻速提升",
+		"tree": "output",
+		"max_level": 3,
+		"cost_per_level": [1, 1, 1],
+		"required_levels": [1, 8, 20],
+		"effects": [
+			{"attribute": "attack_speed", "value": 0.1},
+			{"attribute": "attack_speed", "value": 0.15},
+			{"attribute": "attack_speed", "value": 0.25}
+		],
+		"descriptions": ["攻速+0.1", "攻速+0.15", "攻速+0.25"]
+	},
 	
 	# 生存系（最多投入10点）
 	"health_boost": {
