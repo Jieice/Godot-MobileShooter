@@ -49,12 +49,16 @@ func _refresh(_arg = null):
 
 		var vbox = VBoxContainer.new()
 		vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		vbox.add_theme_constant_override("separation", 0)
 		var name_label = Label.new()
 		name_label.text = "%s (Lv.%d/%d)" % [def.name, current_level, def.max_level]
 		name_label.add_theme_font_size_override("font_size", 16)
 		vbox.add_child(name_label)
+		var desc_text = def.descriptions[0] if def.descriptions.size() > 0 else ""
+		if not can_upgrade_check.ok and can_upgrade_check.reason != "":
+			desc_text += "\n[" + can_upgrade_check.reason + "]"
 		var desc_label = Label.new()
-		desc_label.text = def.descriptions[0] if def.descriptions.size() > 0 else ""
+		desc_label.text = desc_text
 		desc_label.add_theme_font_size_override("font_size", 12)
 		desc_label.modulate = Color(0.8, 0.8, 0.8, 1)
 		vbox.add_child(desc_label)
@@ -78,12 +82,6 @@ func _refresh(_arg = null):
 		var talent_vbox = VBoxContainer.new()
 		talent_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		talent_vbox.add_child(hbox)
-		if not can_upgrade_check.ok:
-			var reason_label = Label.new()
-			reason_label.text = can_upgrade_check.reason
-			reason_label.add_theme_color_override("font_color", Color(1, 0.5, 0.5, 1))
-			reason_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			talent_vbox.add_child(reason_label)
 		list.add_child(talent_vbox)
 
 func _on_upgrade_pressed(talent_id):
