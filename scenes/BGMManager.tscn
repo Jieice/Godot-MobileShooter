@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3 uid="uid://cd2w0fkfea1f"]
+
+[ext_resource type="AudioStream" uid="uid://qsrusc01qef8" path="res://assets/music/music_zapsplat_blugrass_billy.mp3" id="1_vku3v"]
+
+[node name="BGMManager" type="AudioStreamPlayer"]
+stream = ExtResource("1_vku3v")
+autoplay = true

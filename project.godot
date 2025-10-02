@@ -23,6 +23,7 @@ QuestSystem="*res://scripts/quest_system.gd"
 Talents="*res://scripts/talents.gd"
 GameManager="*res://scripts/game_manager.gd"
 Global="*res://scripts/global.gd"
+BgmManager="*res://scenes/BGMManager.tscn"
 
 [display]
 
