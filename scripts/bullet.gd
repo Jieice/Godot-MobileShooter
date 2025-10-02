@@ -120,9 +120,8 @@ func _on_body_entered(body):
 		
 		# 处理裂变效果
 		if GameAttributes.is_fission_enabled and (fission_level < GameAttributes.max_fission_level):
-			# 原始子弹总是分裂，次级子弹根据概率分裂
-			var should_fission = !is_secondary_bullet or (randf() <= GameAttributes.fission_chance)
-			
+			# 所有子弹分裂都用概率判定
+			var should_fission = randf() <= GameAttributes.fission_chance
 			if should_fission:
 				# 使用call_deferred延迟调用create_fission_bullets，避免在物理查询刷新过程中修改物理状态
 				call_deferred("create_fission_bullets", body.global_position)

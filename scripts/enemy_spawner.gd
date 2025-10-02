@@ -274,8 +274,10 @@ func _on_spawn_timer_timeout():
 		else:
 			return # 如果是最后一波，则返回，等待关卡结束
 	
-	spawn_enemy() # 生成一个普通敌人
-	current_wave_enemies += 1 # 增加当前波次敌人计数
+	var spawn_count = randi_range(3, 4)
+	for i in range(spawn_count):
+		spawn_enemy()
+		current_wave_enemies += 1 # 增加当前波次敌人计数
 
 # 波次计时器超时时调用，表示可以开始新的一波敌人了
 func _on_wave_timer_timeout():

@@ -139,11 +139,6 @@ func _initialize_ui():
 			print("UIManager: 警告: _initialize_ui 无法找到LevelManager来初始化经验条")
 	
 	
-	# 初始化设置页面 (之前已经移动到 settings_panel.gd，这里不再初始化)
-	# initialize_settings_page()
-	
-	# 初始化天赋页面 (之前已经移动到 talent_panel.gd，这里不再初始化)
-	initialize_talent_page()
 
 # 更新血条
 func update_health_bar(current_health: float, max_health: float):
@@ -184,11 +179,6 @@ func update_exp_bar(current_exp: int, required_exp: int):
 			exp_bar.color = Color(0.0, 1.0, 0.0, 1) # 70%以上变绿色
 		else:
 			exp_bar.color = Color(0.2, 0.6, 1.0, 1) # 默认蓝色
-
-# 初始化天赋页面
-func initialize_talent_page():
-	if has_node("BottomPanel/天赋"):
-		var talent_panel = get_node("BottomPanel/天赋")
 
 
 # 处理游戏结束信号
