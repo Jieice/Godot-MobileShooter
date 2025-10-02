@@ -21,6 +21,8 @@ GameAttributes="*res://scripts/game_attributes.gd"
 LevelManager="*res://scripts/level_manager.gd"
 QuestSystem="*res://scripts/quest_system.gd"
 Talents="*res://scripts/talents.gd"
+GameManager="*res://scripts/game_manager.gd"
+Global="*res://scripts/global.gd"
 
 [display]
 

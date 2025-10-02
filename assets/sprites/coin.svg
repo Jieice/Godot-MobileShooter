@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- 外圈 -->
+  <circle cx="32" cy="32" r="28" fill="#ffd93b" stroke="#e6b800" stroke-width="3"/>
+  <!-- 内圈 -->
+  <circle cx="32" cy="32" r="20" fill="#ffe97a" stroke="#e6b800" stroke-width="2"/>
+  <!-- 简单刻痕 -->
+  <path d="M24 26 H40 M24 32 H40 M24 38 H40"
+        stroke="#cc9a00" stroke-width="2" stroke-linecap="round"/>
+</svg>

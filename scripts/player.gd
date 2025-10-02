@@ -27,6 +27,11 @@ func _ready():
 	health = GameAttributes.health
 	max_health = GameAttributes.max_health
 	
+	# 保护：如果血量为0或负数，自动重置为最大值，防止存档异常导致血量为0
+	if health <= 0:
+		health = max_health
+		GameAttributes.update_attribute("health", max_health)
+	
 	# 监听属性变化
 	GameAttributes.attributes_changed.connect(_on_attributes_changed)
 	

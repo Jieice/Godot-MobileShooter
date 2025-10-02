@@ -8,17 +8,17 @@ extends Node2D
 # 关卡系统相关变量，由 LevelManager 配置
 var health_multiplier = 1.0 # 敌人生命值乘数，由 LevelManager 根据关卡难度设置
 var speed_multiplier = 1.0 # 敌人速度乘数，由 LevelManager 根据关卡难度设置
-var enemies_per_wave = 10 # 每波普通敌人生成的数量，由 LevelManager 根据关卡配置设置
+var enemies_per_wave = 8 # 每波普通敌人生成的数量，由 LevelManager 根据关卡配置设置
 var has_boss = false # 当前关卡波次是否会生成 BOSS，由 LevelManager 设置
 var boss_scale = 1.5 # BOSS 的缩放比例，由 LevelManager 设置
 var boss_health_multiplier = 3.0 # BOSS 生命值额外的乘数，由 LevelManager 设置
 var boss_effects = [] # 存储 BOSS 的特殊效果，如 "red_border", "speed_burst", "area_slow"
 var additional_enemies = 0 # BOSS 战时额外生成的小怪数量
 var current_level = 1 # 当前关卡，从 LevelManager 获取
-var max_concurrent_enemies = 5 # 屏幕上允许同时存在的最大敌人数量
+var max_concurrent_enemies = 10 # 屏幕上允许同时存在的最大敌人数量
 var current_wave_enemies = 0 # 当前波次已生成的敌人数量
 var wave_count = 0 # 已进行的波次计数
-var max_waves = 7 # 每关最大波次
+var max_waves = 5 # 每关最大波次
 
 var spawn_timer = null # 控制敌人生成间隔的定时器
 var wave_timer = null # 控制波次间隔的定时器
@@ -274,7 +274,7 @@ func _on_spawn_timer_timeout():
 		else:
 			return # 如果是最后一波，则返回，等待关卡结束
 	
-	var spawn_count = randi_range(3, 4)
+	var spawn_count = randi_range(1, 2)
 	for i in range(spawn_count):
 		spawn_enemy()
 		current_wave_enemies += 1 # 增加当前波次敌人计数

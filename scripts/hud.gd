@@ -16,10 +16,10 @@ func _ready():
 		print("警告: 无法找到Player节点")
 		return
 	
-	# 获取游戏管理器引用
-	_game_manager = get_node("/root/Main/GameManager")
+	# 获取游戏管理器引用（改为全局单例）
+	_game_manager = GameManager
 	if not _game_manager:
-		print("警告: 无法找到GameManager节点")
+		print("警告: 无法找到GameManager单例")
 		return
 	
 	# 连接信号
@@ -27,6 +27,17 @@ func _ready():
 	
 	# 初始化显示
 	_initialize_display()
+	
+	# 连接重新开始按钮并加调试输出
+	var restart_btn = get_node_or_null("GameOverPanel/RestartButton")
+	print("HUD: restart_btn = ", restart_btn)
+	if restart_btn:
+		for c in restart_btn.get_signal_connection_list("pressed"):
+			restart_btn.disconnect("pressed", c.target) # Godot 4.x 只需信号名和目标对象
+		restart_btn.connect("pressed", Callable(GameManager, "restart_game"))
+		print("HUD: RestartButton signal connected to GameManager.restart_game")
+	else:
+		print("HUD: RestartButton not found!")
 	
 	emit_signal("hud_ready")
 
@@ -85,7 +96,7 @@ func update_health_bar(current_health: float, max_health: float):
 		var health_bar = $HealthBar
 		health_bar.max_value = max_health
 		health_bar.value = current_health
-		health_bar.get_node("HealthLabel").text = str(int(current_health)) + "/" + str(int(max_health))
+		health_bar.get_node("HealthLabel").text = "生命值: " + str(int(GameAttributes.health)) + "/" + str(int(GameAttributes.max_health))
 
 # 更新玩家等级显示
 func update_player_level():

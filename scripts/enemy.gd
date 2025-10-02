@@ -273,7 +273,7 @@ func _create_or_update_health_label(health_bar: ProgressBar, text_content: Strin
 
 # 敌人死亡
 func die():
-	is_alive = false
+	print("Enemy: emit_signal('enemy_died'), score_value=", score_value)
 	emit_signal("enemy_died")
 	
 	# 检查击杀回能概率天赋
@@ -311,18 +311,16 @@ func trigger_kill_energy():
 # 显示击杀回能文字效果
 func show_kill_energy_text():
 	var energy_label = Label.new()
-	energy_label.text = "击杀回能!"
-	energy_label.add_theme_color_override("font_color", Color(0.0, 1.0, 0.0)) # 绿色
+	energy_label.text = "击杀回血"
 	energy_label.add_theme_font_size_override("font_size", 16)
-	energy_label.position = global_position + Vector2(0, -30)
-	
-	# 添加到场景
-	get_tree().current_scene.add_child(energy_label)
-	
-	# 动画效果
-	var tween = create_tween()
-	tween.tween_property(energy_label, "position", energy_label.position + Vector2(0, -50), 1.0)
-	tween.tween_property(energy_label, "modulate:a", 0.0, 1.0)
+	energy_label.add_theme_color_override("font_color", Color(0.0, 1.0, 0.0)) # 绿色
+	energy_label.global_position = global_position + Vector2(0, -30)
+	get_tree().get_root().add_child(energy_label)
+
+	var tween = get_tree().create_tween()
+	tween.tween_interval(0.5) # 先停留1秒
+	tween.tween_property(energy_label, "global_position", energy_label.global_position + Vector2(0, -30), 1.0)
+	tween.parallel().tween_property(energy_label, "modulate", Color(0.0, 1.0, 0.0, 0), 1.0)
 	tween.tween_callback(energy_label.queue_free)
 
 

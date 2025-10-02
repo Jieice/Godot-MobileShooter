@@ -185,7 +185,13 @@ func _on_body_entered(body):
 					tween.tween_callback(lightning.queue_free)
 					# 0.2秒后移除特效（保险）
 					get_tree().get_root().add_child(lightning)
-					lightning.call_deferred("_add_timer_and_start")
+					# 直接同步添加Timer并autostart，去除call_deferred
+					var timer = Timer.new()
+					timer.wait_time = 0.2
+					timer.one_shot = true
+					timer.autostart = true
+					timer.connect("timeout", Callable(lightning, "queue_free"))
+					lightning.add_child(timer)
 					# 造成弹射伤害（50%）
 					if nearest_enemy.has_method("take_damage"):
 						nearest_enemy.take_damage(damage * 0.5)

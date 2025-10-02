@@ -120,12 +120,9 @@ func save_game():
 		await get_tree().process_frame
 	else:
 		print("游戏数据保存失败: ", error)
-		# print("具体的保存错误代码: ", error_string(error)) # 已移除
-		# emit_signal("save_failed", "保存失败: " + error_string(error)) # 已移除
 
 # 加载游戏数据
 func load_game():
-	print("SaveSystem: load_game() called")
 	var config = ConfigFile.new()
 	
 	# 尝试加载主存档文件
@@ -142,13 +139,11 @@ func load_game():
 	
 	# 解析存档数据
 	var save_data = parse_save_data(config)
-	print("SaveSystem: 解析到的存档数据: ", save_data)
 	
 	# 应用存档数据到游戏
 	apply_save_data(save_data)
 	
 	print("SaveSystem: 游戏数据加载成功")
-	# emit_signal("load_completed") # 已移除
 	
 
 	return true

@@ -75,70 +75,65 @@ func get_level_config():
 	
 	match phase:
 		LevelPhase.BEGINNER:
-			# 新手期（1-5关）血量1倍、移速1倍、每波8只、间隔4秒
+			# 新手期（1-5关）血量1倍、移速1倍、每波4只、间隔4秒
 			config.health_multiplier = 1.0
 			config.speed_multiplier = 1.0
-			config.enemies_per_wave = 8 # 从 5 增加到 8
-			config.wave_interval = 4.0 # 调整为 4.0 秒，加快开局生成速度
+			config.enemies_per_wave = 4
+			config.wave_interval = 4.0
 			
 		LevelPhase.TRANSITION:
-			# 过渡期（6-10关）血量1.2倍、移速1.1倍、每波12只
+			# 过渡期（6-10关）血量1.2倍、移速1.1倍、每波6只
 			config.health_multiplier = 1.2
 			config.speed_multiplier = 1.1
-			config.enemies_per_wave = 12 # 从 8 增加到 12
-			config.wave_interval = 7.0
-			
-			# 10关伪BOSS（放大1.5倍，血量3倍, 3只小怪）
+			config.enemies_per_wave = 6
+			config.wave_interval = 5.0
+			# 10关伪BOSS
 			if current_level == 10:
 				config.has_boss = true
 				config.boss_scale = 1.5
 				config.boss_health_multiplier = 3.0
-				config.additional_enemies = 3 # 从 0 增加到 3
-				
+				config.additional_enemies = 3
+			
 		LevelPhase.GROWTH:
-			# 成长期（11-15关）血量1.5倍、移速1.3倍、每波15只
+			# 成长期（11-15关）血量1.5倍、移速1.3倍、每波10只
 			config.health_multiplier = 1.5
 			config.speed_multiplier = 1.3
-			config.enemies_per_wave = 15 # 从 10 增加到 15
+			config.enemies_per_wave = 10
 			config.wave_interval = 6.0
-			
-			# 15关伪BOSS+5只小怪
+			# 15关伪BOSS
 			if current_level == 15:
 				config.has_boss = true
 				config.boss_scale = 1.5
 				config.boss_health_multiplier = 4.0
-				config.additional_enemies = 5 # 从 2 增加到 5
-				
+				config.additional_enemies = 5
+			
 		LevelPhase.MATURE:
-			# 成熟期（16-20关）血量1.8倍、移速1.5倍、每波18只
+			# 成熟期（16-20关）血量1.8倍、移速1.5倍、每波12只
 			config.health_multiplier = 1.8
 			config.speed_multiplier = 1.5
-			config.enemies_per_wave = 18 # 从 12 增加到 18
+			config.enemies_per_wave = 12
 			config.wave_interval = 5.0
-			
-			# 20关伪BOSS（红色边框，血量5倍，短暂加速，额外小怪3只）
+			# 20关伪BOSS
 			if current_level == 20:
 				config.has_boss = true
 				config.boss_scale = 1.5
 				config.boss_health_multiplier = 5.0
 				config.boss_effects = ["red_border", "speed_burst"]
-				config.additional_enemies = 3 # 从 0 增加到 3
-				
+				config.additional_enemies = 3
+			
 		LevelPhase.LOOP:
 			# 循环期（21关后）每5关数值×1.1倍
 			var base_multiplier = get_loop_multiplier()
 			config.health_multiplier = 1.8 * base_multiplier
 			config.speed_multiplier = 1.5 * base_multiplier
-			config.enemies_per_wave = min(25, int(floor(18.0 * base_multiplier))) # 增加上限和基础值
-			config.wave_interval = max(2.5, 5.0 - (base_multiplier - 1.0) * 2.0) # 最小间隔从 3.0 减少到 2.5
-			
-			# 每5关出现伪BOSS，并且有范围减速效果
+			config.enemies_per_wave = min(15, int(floor(12.0 * base_multiplier)))
+			config.wave_interval = max(2.5, 5.0 - (base_multiplier - 1.0) * 2.0)
 			if current_level % 5 == 0:
 				config.has_boss = true
 				config.boss_scale = 1.5
 				config.boss_health_multiplier = 5.0 * base_multiplier
 				config.boss_effects = ["red_border", "speed_burst", "area_slow"]
-				config.additional_enemies = min(8, int(floor((float(current_level) - 20.0) / 10.0) + 3)) # 循环期小怪逐渐增加
+				config.additional_enemies = min(8, int(floor((float(current_level) - 20.0) / 10.0) + 3))
 	
 	return config
 

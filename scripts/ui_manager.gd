@@ -6,7 +6,7 @@ signal ui_ready
 var _player: CharacterBody2D
 var _game_manager: Node
 var _active_tab_index = 0 # 追踪当前激活的 BottomPanel Tab 索引 (0: 属性, 1: 天赋)
-var _is_2x_speed_active = false # 追踪2倍速状态
+@onready var _is_2x_speed_active = false # 追踪2倍速状态
 
 func _ready():
 	# print("UIManager: _ready() called")
@@ -70,16 +70,21 @@ func _ready():
 	# print("UIManager:   - InGameLevelInfo/ExpBar: ", has_node("InGameLevelInfo/ExpBar"))
 	# print("UIManager:   - PlayerLevel: ", has_node("PlayerLevel"))
 	# print("UIManager:   - ScoreLabel: ", has_node("ScoreLabel"))
-	# 初始化钻石显示
-	_on_diamonds_changed(GameAttributes.diamonds)
-	# 初始化金币显示
-	_on_score_updated(_game_manager.score)
-	
 	# 初始UI更新
 	update_player_level()
 	update_exp_display()
 	update_level_display()
 	emit_signal("ui_ready")
+	# --- 新增：重启后刷新2倍速按钮文本和速度 ---
+	var speed_button_restart = get_node_or_null("Speed2xButton")
+	if _is_2x_speed_active:
+		Engine.time_scale = 2.0
+		if speed_button_restart:
+			speed_button_restart.text = "2X Speed (ON)"
+	else:
+		Engine.time_scale = 1.0
+		if speed_button_restart:
+			speed_button_restart.text = "2X Speed (OFF)"
 
 func _connect_signals():
 	# 连接玩家信号
@@ -218,56 +223,6 @@ func _on_diamonds_changed(new_diamonds: int):
 	if diamond_label:
 		diamond_label.text = "钻石: " + str(new_diamonds)
 
-# 存档系统信号处理
-# func _on_save_completed():
-#	print("收到保存完成信号")
-#	close_operation_dialog()
-#	show_success_dialog("保存成功", "游戏已成功保存！")
-#	update_save_info_display()
-
-# func _on_load_completed():
-#	print("收到加载完成信号")
-#	close_operation_dialog()
-#	show_success_dialog("加载成功", "游戏已成功加载！")
-#	
-#	# 更新所有UI元素
-#	update_save_info_display()
-
-# func _on_save_failed(error_message: String):
-#	print("收到保存失败信号: ", error_message)
-#	close_operation_dialog()
-#	show_error_dialog("保存失败", "保存游戏时发生错误：\n" + error_message)
-
-# func _on_load_failed(error_message: String):
-#	print("收到加载失败信号: ", error_message)
-#	close_operation_dialog()
-#	show_error_dialog("加载失败", "加载游戏时发生错误：\n" + error_message)
-
-# 删除存档完成处理
-# func _on_delete_completed():
-#	print("收到删除完成信号")
-#	close_operation_dialog()
-#	show_success_dialog("删除成功", "存档已成功删除！")
-#	update_save_info_display()
-
-# func _on_delete_failed(error_message: String):
-#	print("收到删除失败信号: ", error_message)
-#	close_operation_dialog()
-#	show_error_dialog("删除失败", "删除存档时发生错误：\n" + error_message)
-
-# 更新存档信息显示
-# func update_save_info_display():
-#	var save_info_label = get_node_or_null("BottomPanel/设置/SaveManagerSection/SaveInfoLabel")
-#	if not save_info_label:
-#		print("存档信息标签不存在，跳过更新")
-#		return
-#	
-#	var save_info = SaveSystem.get_save_info()
-#	if not save_info:
-#		save_info_label.text = "存档信息: 无存档"
-#	else:
-#		print("存档信息: ", save_info)
-#		save_info_label.text = "存档信息: 等级 " + str(save_info.player_level) + " | 最高关卡 " + str(save_info.highest_level) + " | 总分数 " + str(save_info.total_score)
 
 # 显示操作对话框
 func show_operation_dialog(title: String, message: String):
@@ -551,28 +506,23 @@ func _on_ui_update_timer_timeout():
 
 # 更新关卡显示（兼容旧调用方式）
 func update_level_display(_level_number = null, _level_data = null):
-	# print("UIManager: update_level_display() called")
 	var level_manager = get_node("/root/LevelManager")
 	if has_node("InGameLevelInfo/InGameLevel") and level_manager:
 		var current_level_val = level_manager.current_level
-		# 计算关卡格式：1-1, 1-2, 1-3, 1-4, 1-5, 2-1...
-		var major_level = ((current_level_val - 1) / 5) + 1
+		var major_level = int((current_level_val - 1) / 5) + 1
 		var minor_level = ((current_level_val - 1) % 5) + 1
 		var level_text = "关卡: " + str(major_level) + "-" + str(minor_level)
 		$InGameLevelInfo/InGameLevel.text = level_text
-		# print("UIManager: 更新关卡显示到: ", level_text, " (从LevelManager获取: ", current_level_val, ")")
+		# print("UIManager: update_level_display() current_level=", current_level_val, " 显示:", level_text)
 	else:
-		# print("UIManager: 警告: 无法更新InGameLevel，节点或LevelManager缺失")
+		# print("UIManager: update_level_display() 无法找到LevelManager或InGameLevel节点")
 		pass
-	
 	# 同时更新关卡进度条
 	if level_manager:
 		var current_progress_val = level_manager.current_progress
 		var target_progress_val = level_manager.target_progress
 		update_level_progress(current_progress_val, target_progress_val)
-		# print("UIManager: 调用 update_level_progress: current=", current_progress_val, ", target=", target_progress_val)
 	else:
-		# print("UIManager: 警告: 无法更新关卡进度条，LevelManager缺失")
 		pass
 
 # 更新关卡进度条

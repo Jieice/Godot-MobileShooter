@@ -111,11 +111,11 @@ var talent_definitions = {
 		"cost_per_level": [1, 1, 1],
 		"required_levels": [1, 12, 25],
 		"effects": [
-			{"attribute": "kill_energy_chance", "value": 0.40}, # 1级：+40%
-			{"attribute": "kill_energy_chance", "value": 0.60}, # 2级：+60%
-			{"attribute": "kill_energy_chance", "value": 0.80} # 3级：+80%
+			{"attribute": "kill_energy_chance", "value": 0.05}, 
+			{"attribute": "kill_energy_chance", "value": 0.05}, 
+			{"attribute": "kill_energy_chance", "value": 0.10} 
 		],
-		"descriptions": ["击杀回血概率+40%", "击杀回血概率+60%", "击杀回血概率+80%"]
+		"descriptions": ["击杀回血概率+5%", "击杀回血概率+5%", "击杀回血概率+10%"]
 	},
 	"dual_target": {
 		"name": "双目标锁定",
@@ -166,6 +166,19 @@ var talent_definitions = {
 			{"attribute": "fission_chance", "value": 0.30} # 3级：+30%
 		],
 		"descriptions": ["裂变几率+10%", "裂变几率+20%", "裂变几率+30%"]
+	},
+	"chain_lightning": {
+		"name": "连锁闪电",
+		"tree": "utility",
+		"max_level": 3,
+		"cost_per_level": [1, 1, 1],
+		"required_levels": [5, 15, 25],
+		"effects": [
+			{"attribute": "chain_lightning_chance", "value": 0.10},
+			{"attribute": "chain_lightning_chance", "value": 0.20},
+			{"attribute": "chain_lightning_chance", "value": 0.30}
+		],
+		"descriptions": ["子弹击中敌人后有10%概率弹射到其他敌人", "子弹击中敌人后有20%概率弹射到其他敌人", "子弹击中敌人后有30%概率弹射到其他敌人"]
 	}
 }
 
@@ -303,6 +316,9 @@ func apply_talent_effect(talent_id, level):
 			print("Talents: 更新GameAttributes: ", attribute, " to ", value)
 		elif attribute == "fission_chance":
 			GameAttributes.fission_chance = value
+			print("Talents: 更新GameAttributes: ", attribute, " to ", value)
+		elif attribute == "chain_lightning_chance":
+			GameAttributes.chain_lightning_chance = value
 			print("Talents: 更新GameAttributes: ", attribute, " to ", value)
 	else:
 		# 普通属性效果

@@ -34,7 +34,8 @@ func _initialize_attribute_labels():
 		{"name": "TripleShotChanceLabel", "label": "三连发几率: "},
 		{"name": "FissionChanceLabel", "label": "裂变几率: "},
 		{"name": "KillEnergyChanceLabel", "label": "击杀回血概率: "},
-		{"name": "DualTargetLabel", "label": "双目标锁定: "}
+		{"name": "DualTargetLabel", "label": "双目标锁定: "},
+		{"name": "ChainLightningChanceLabel", "label": "连锁闪电几率: "}
 	]
 	
 	for stat_info in stats_to_create:
@@ -75,7 +76,8 @@ func update_player_stats(): # 移除player参数，直接使用player_node
 		{"name": "TripleShotChanceLabel", "label": "三连发几率: ", "value": str(snappedf(GameAttributes.triple_shot_chance * 100, 0.1)) + "%"},
 		{"name": "FissionChanceLabel", "label": "裂变几率: ", "value": str(snappedf(GameAttributes.fission_chance * 100, 0.1)) + "%"},
 		{"name": "KillEnergyChanceLabel", "label": "击杀回血概率: ", "value": str(snappedf(GameAttributes.kill_energy_chance * 100, 0.1)) + "%"},
-		{"name": "DualTargetLabel", "label": "双目标锁定: ", "value": ("是" if GameAttributes.dual_target_enabled else "否")}
+		{"name": "DualTargetLabel", "label": "双目标锁定: ", "value": ("是" if GameAttributes.dual_target_enabled else "否")},
+		{"name": "ChainLightningChanceLabel", "label": "连锁闪电几率: ", "value": str(snappedf(GameAttributes.chain_lightning_chance * 100, 0.1)) + "%"}
 	]
 	for stat in stats:
 		var label = get_node_or_null(stat.name)
