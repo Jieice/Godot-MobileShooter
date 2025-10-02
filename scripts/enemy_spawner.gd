@@ -163,7 +163,7 @@ func start_wave():
 	
 	# 偶数关最后一波生成boss
 	has_boss = false
-	if level_num % 2 == 0 and wave_count == max_waves:
+	if int(level_num) % 2 == 0 and wave_count == max_waves:
 		has_boss = true
 	
 	# 根据关卡编号和波次设置 BOSS 具体特性
@@ -217,7 +217,7 @@ func spawn_boss():
 	
 	# 随机生成 BOSS 位置（屏幕外围）
 	var spawn_position = Vector2.ZERO
-	var rand_side = randi() % 4 # 0: 上, 1: 右, 2: 下, 3: 左
+	var rand_side = int(randi()) % 4 # 0: 上, 1: 右, 2: 下, 3: 左
 	match rand_side:
 		0:
 			spawn_position.x = randf_range(0, screen_size.x)
@@ -331,7 +331,7 @@ func spawn_enemy(is_boss = false):
 		enemy.connect("enemy_died", Callable(level_manager, "add_experience").bind(enemy.score_value))
 	# 敌人出生在屏幕外围
 	var spawn_position = Vector2.ZERO
-	var rand_side = randi() % 4
+	var rand_side = int(randi()) % 4
 	match rand_side:
 		0:
 			spawn_position.x = randf_range(0, screen_size.x)

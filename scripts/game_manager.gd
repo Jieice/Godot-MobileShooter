@@ -39,13 +39,13 @@ func _ready():
 	if not level_manager:
 		print("GameManager: 警告: 无法找到LevelManager节点, level_manager is Nil!")
 		return
+	await get_tree().process_frame
+	# 关卡初始化判断
 	if Global.restart_level_number > 0:
 		print("GameManager: 检测到重启关卡号，直接进入关卡:", Global.restart_level_number)
 		level_manager.start_level(Global.restart_level_number)
 		Global.restart_level_number = -1
-	else:
-		print("GameManager: 无重启关卡号，进入默认第一关")
-		level_manager.start_level(1)
+	# 移除自动进入第一关的逻辑，关卡启动完全交由 SaveManager 控制
 	
 	print("GameManager: _ready()结束")
 	

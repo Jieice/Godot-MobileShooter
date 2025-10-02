@@ -510,7 +510,7 @@ func update_level_display(_level_number = null, _level_data = null):
 	if has_node("InGameLevelInfo/InGameLevel") and level_manager:
 		var current_level_val = level_manager.current_level
 		var major_level = int((current_level_val - 1) / 5) + 1
-		var minor_level = ((current_level_val - 1) % 5) + 1
+		var minor_level = (int(current_level_val) - 1) % 5 + 1
 		var level_text = "关卡: " + str(major_level) + "-" + str(minor_level)
 		$InGameLevelInfo/InGameLevel.text = level_text
 		# print("UIManager: update_level_display() current_level=", current_level_val, " 显示:", level_text)

@@ -24,6 +24,7 @@ Talents="*res://scripts/talents.gd"
 GameManager="*res://scripts/game_manager.gd"
 Global="*res://scripts/global.gd"
 BgmManager="*res://scenes/BGMManager.tscn"
+SaveManager="*res://scripts/save_manager.gd"
 
 [display]
 

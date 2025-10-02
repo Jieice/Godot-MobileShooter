@@ -135,7 +135,7 @@ func get_level_config():
 			config.damage_multiplier = 1.15 * pow(1.05, (current_level - 20) / 5)
 			config.enemies_per_wave = min(15, int(floor(12.0 * base_multiplier)))
 			config.wave_interval = max(2.5, 5.0 - (base_multiplier - 1.0) * 2.0)
-			if current_level % 5 == 0:
+			if int(current_level) % 5 == 0:
 				config.has_boss = true
 				config.boss_scale = 1.5
 				config.boss_health_multiplier = 5.0 * base_multiplier
@@ -151,8 +151,8 @@ func _ready():
 	update_player_attributes()
 
 # 开始指定关卡
-func start_level(level_number):
-	print("LevelManager: start_level() called with level_number: ", level_number)
+func start_level(level_number, wave := 0, progress := 0):
+	print("LevelManager: start_level() called with level_number: ", level_number, ", wave: ", wave, ", progress: ", progress)
 	if level_number < 1:
 		push_error("无效的关卡编号: " + str(level_number))
 		return
@@ -162,8 +162,8 @@ func start_level(level_number):
 	var level_config = get_level_config()
 	
 	# 设置关卡进度
-	current_progress = 0
-	current_wave = 0
+	current_progress = progress
+	current_wave = wave
 	total_waves = 5 # 每关5波怪物
 	enemies_per_wave = level_config.enemies_per_wave
 	target_progress = total_waves * enemies_per_wave
