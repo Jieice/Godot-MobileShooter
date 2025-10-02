@@ -1,0 +1,12 @@
+[gd_resource type="Script" path="res://scripts/mod_resource.gd" id="uid://spr1i8wkxrfs"]
+
+[resource]
+script = ExtResource("uid://spr1i8wkxrfs")
+id = "fury_mod"
+mod_name = "狂怒 Mod"
+description = "增加子弹伤害"
+attribute_id = "bullet_damage"
+modifier_type = 0
+value = 5.0
+rarity = 0
+level = 1

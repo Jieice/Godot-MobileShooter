@@ -1,0 +1,12 @@
+[gd_resource type="Script" path="res://scripts/mod_resource.gd" id="uid://spr1i8wkxrfs"]
+
+[resource]
+script = ExtResource("uid://spr1i8wkxrfs")
+id = "toughness_mod"
+mod_name = "坚韧 Mod"
+description = "增加最大生命值"
+attribute_id = "max_health"
+modifier_type = 0
+value = 25.0
+rarity = 0
+level = 1

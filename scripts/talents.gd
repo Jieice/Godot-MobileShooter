@@ -127,6 +127,45 @@ var talent_definitions = {
 			{"attribute": "dual_target_enabled", "value": true}
 		],
 		"descriptions": ["可同时锁定两个目标"]
+	},
+	"double_shot_mastery": {
+		"name": "双连发专精",
+		"tree": "output",
+		"max_level": 3,
+		"cost_per_level": [1, 1, 1],
+		"required_levels": [1, 10, 20],
+		"effects": [
+			{"attribute": "double_shot_chance", "value": 0.10}, # 1级：+10%
+			{"attribute": "double_shot_chance", "value": 0.20}, # 2级：+20%
+			{"attribute": "double_shot_chance", "value": 0.30} # 3级：+30%
+		],
+		"descriptions": ["双连发几率+10%", "双连发几率+20%", "双连发几率+30%"]
+	},
+	"triple_shot_mastery": {
+		"name": "三连发专精",
+		"tree": "output",
+		"max_level": 3,
+		"cost_per_level": [2, 2, 2],
+		"required_levels": [5, 15, 25],
+		"effects": [
+			{"attribute": "triple_shot_chance", "value": 0.05}, # 1级：+5%
+			{"attribute": "triple_shot_chance", "value": 0.10}, # 2级：+10%
+			{"attribute": "triple_shot_chance", "value": 0.15} # 3级：+15%
+		],
+		"descriptions": ["三连发几率+5%", "三连发几率+10%", "三连发几率+15%"]
+	},
+	"fission_mastery": {
+		"name": "裂变专精",
+		"tree": "output",
+		"max_level": 3,
+		"cost_per_level": [1, 1, 1],
+		"required_levels": [1, 10, 20],
+		"effects": [
+			{"attribute": "fission_chance", "value": 0.10}, # 1级：+10%
+			{"attribute": "fission_chance", "value": 0.20}, # 2级：+20%
+			{"attribute": "fission_chance", "value": 0.30} # 3级：+30%
+		],
+		"descriptions": ["裂变几率+10%", "裂变几率+20%", "裂变几率+30%"]
 	}
 }
 
@@ -255,6 +294,15 @@ func apply_talent_effect(talent_id, level):
 			print("Talents: 更新GameAttributes: ", attribute, " to ", value)
 		elif attribute == "dual_target_enabled":
 			GameAttributes.dual_target_enabled = value
+			print("Talents: 更新GameAttributes: ", attribute, " to ", value)
+		elif attribute == "double_shot_chance":
+			GameAttributes.double_shot_chance = value
+			print("Talents: 更新GameAttributes: ", attribute, " to ", value)
+		elif attribute == "triple_shot_chance":
+			GameAttributes.triple_shot_chance = value
+			print("Talents: 更新GameAttributes: ", attribute, " to ", value)
+		elif attribute == "fission_chance":
+			GameAttributes.fission_chance = value
 			print("Talents: 更新GameAttributes: ", attribute, " to ", value)
 	else:
 		# 普通属性效果

@@ -31,7 +31,8 @@ func _initialize_attribute_labels():
 		{"name": "AttackRangeLabel", "label": "攻击范围: "},
 		{"name": "CritMultiplierLabel", "label": "暴击倍率: "},
 		{"name": "DoubleShotChanceLabel", "label": "双连发几率: "},
-		{"name": "TripleShotChanceLabel", "label": "三连发几率: "}
+		{"name": "TripleShotChanceLabel", "label": "三连发几率: "},
+		{"name": "FissionChanceLabel", "label": "裂变几率: "}
 	]
 	
 	for stat_info in stats_to_create:
@@ -69,7 +70,8 @@ func update_player_stats(): # 移除player参数，直接使用player_node
 		{"name": "AttackRangeLabel", "label": "攻击范围: ", "value": str(snapped(GameAttributes.attack_range, 0.1)) + "x"},
 		{"name": "CritMultiplierLabel", "label": "暴击倍率: ", "value": str(snapped(GameAttributes.crit_multiplier, 0.1)) + "x"},
 		{"name": "DoubleShotChanceLabel", "label": "双连发几率: ", "value": str(snappedf(GameAttributes.double_shot_chance * 100, 0.1)) + "%"},
-		{"name": "TripleShotChanceLabel", "label": "三连发几率: ", "value": str(snappedf(GameAttributes.triple_shot_chance * 100, 0.1)) + "%"}
+		{"name": "TripleShotChanceLabel", "label": "三连发几率: ", "value": str(snappedf(GameAttributes.triple_shot_chance * 100, 0.1)) + "%"},
+		{"name": "FissionChanceLabel", "label": "裂变几率: ", "value": str(snappedf(GameAttributes.fission_chance * 100, 0.1)) + "%"}
 	]
 	for stat in stats:
 		var label = get_node_or_null(stat.name)
