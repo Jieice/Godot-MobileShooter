@@ -5,12 +5,19 @@ signal ui_ready
 
 var _player: CharacterBody2D
 var _game_manager: Node
+var _active_tab_index = 0 # 追踪当前激活的 BottomPanel Tab 索引 (0: 属性, 1: 天赋)
+var _is_2x_speed_active = false # 追踪2倍速状态
 
 func _ready():
 	print("UIManager: _ready() called")
 	add_to_group("ui_manager")
 	print("UI管理器初始化开始")
 	
+	var bottom_panel = _get_bottom_panel()
+	if bottom_panel:
+		# 连接TabContainer的tab_changed信号，用于调试和确认tab切换事件
+		bottom_panel.connect("tab_changed", Callable(self, "_on_bottom_panel_tab_changed"))
+		print("UIManager: BottomPanel tab_changed signal connected.")
 	# 获取玩家引用
 	_player = get_node("../Player")
 	if not _player:
@@ -29,6 +36,12 @@ func _ready():
 	# 初始化UI
 	# _initialize_ui() # UI初始化现在由各个Panel自行管理，UIManager不再负责全部初始化
 	
+	# 初始化2倍速按钮文本
+	var speed_button = get_node_or_null("Speed2xButton")
+	if speed_button:
+		speed_button.text = "2X Speed (OFF)"
+		speed_button.connect("pressed", Callable(self, "_on_speed_2x_button_pressed"))
+
 	# 启动定期UI更新
 	_start_ui_update_timer()
 	
@@ -176,7 +189,6 @@ func update_exp_bar(current_exp: int, required_exp: int):
 func initialize_talent_page():
 	if has_node("BottomPanel/天赋"):
 		var talent_panel = get_node("BottomPanel/天赋")
-		talent_panel.visible = false # 默认隐藏
 
 
 # 处理游戏结束信号
@@ -456,26 +468,10 @@ func _on_player_level_up(level):
 	print("UIManager: _on_player_level_up(", level, ") called")
 	print("UIManager: 玩家升级到 ", level, " 级")
 	
-	# 更新玩家等级显示
-	update_player_level()
-	
-	# 更新经验条显示
-	update_exp_display()
-	
-	# 更新关卡显示（如果需要根据等级变化）
-	update_level_display()
-	
-	# 刷新天赋UI以更新天赋点显示和天赋面板
-	var level_manager = get_node("/root/LevelManager")
-	if level_manager:
-		# 更新天赋点显示
-		if has_node("BottomPanel/天赋/TalentPointsLabel"):
-			$BottomPanel / 天赋 / TalentPointsLabel.text = "可用天赋点: " + str(level_manager.talent_points) + " (每级获得1点)"
-		
-		# 刷新天赋面板UI
-		var talent_panel = get_node_or_null("BottomPanel/天赋")
-		if talent_panel and talent_panel.has_method("_refresh"):
-			talent_panel._refresh()
+	# 刷新天赋面板UI (如果有天赋点可用，并且天赋面板存在)
+	var talent_panel = get_node_or_null("BottomPanel/天赋")
+	if talent_panel and talent_panel.has_method("_refresh"):
+		talent_panel._refresh()
 
 func _on_level_started(level_number, level_data):
 	print("UIManager: _on_level_started(", level_number, ", ", level_data, ") called")
@@ -554,6 +550,7 @@ func _on_ui_update_timer_timeout():
 		if attribute_panel.has_method("update_player_stats"):
 			attribute_panel.update_player_stats() # 移除参数
 	# update_player_stats()
+
 
 # 更新关卡显示（兼容旧调用方式）
 func update_level_display(_level_number = null, _level_data = null):
@@ -638,3 +635,37 @@ func update_exp_display():
 			exp_bar.color = Color(0.2, 0.6, 1.0, 1) # 蓝色
 	else:
 		print("UIManager: ⚠️ 经验条节点不存在: InGameLevelInfo/ExpBar")
+
+
+# 新增：安全获取 BottomPanel 节点的方法
+func _get_bottom_panel():
+	var bottom_panel = get_node_or_null("BottomPanel")
+	if not bottom_panel:
+		print("UIManager: 警告: 无法找到 BottomPanel 节点")
+	return bottom_panel
+
+# 新增：显式切换 BottomPanel 的 Tab
+func switch_bottom_panel_tab(index: int):
+	var bottom_panel = _get_bottom_panel()
+	if bottom_panel:
+		if index >= 0 and index < bottom_panel.get_tab_count():
+			bottom_panel.current_tab = index
+			print("UIManager: 切换 BottomPanel 到 Tab: ", index)
+		else:
+			print("UIManager: 警告: 无效的 BottomPanel Tab 索引: ", index)
+
+# 新增：处理 BottomPanel Tab 变化的信号回调（用于调试）
+func _on_bottom_panel_tab_changed(index: int):
+	print("UIManager: BottomPanel Tab 已切换到索引: ", index)
+	_active_tab_index = index # 更新激活的Tab索引
+
+# 新增：切换2倍速功能
+func _on_speed_2x_button_pressed():
+	_is_2x_speed_active = not _is_2x_speed_active
+	Engine.time_scale = 2.0 if _is_2x_speed_active else 1.0
+	print("UIManager: 游戏速度切换到: ", Engine.time_scale, "x")
+	
+	# 更新按钮文本
+	var speed_button = get_node_or_null("Speed2xButton")
+	if speed_button:
+		speed_button.text = "2X Speed (ON)" if _is_2x_speed_active else "2X Speed (OFF)"

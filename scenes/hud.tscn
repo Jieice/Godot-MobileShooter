@@ -1,8 +1,8 @@
-[gd_scene load_steps=7 format=3 uid="uid://bld8jks2mhktu"]
+[gd_scene load_steps=8 format=3 uid="uid://bld8jks2mhktu"]
 
 [ext_resource type="Script" uid="uid://ck7i0ecpy7yxx" path="res://scripts/ui_manager.gd" id="1_5ysmq"]
 [ext_resource type="Script" uid="uid://bfq78wriabsgl" path="res://scripts/attribute_panel.gd" id="2_6fi6k"]
-[ext_resource type="Script" uid="uid://cmf086k6dps8e" path="res://scripts/talentstree.gd" id="3_v118s"]
+[ext_resource type="Script" uid="uid://b3ku8b6u08lkb" path="res://scripts/talentstree.gd" id="3_v118s"]
 
 [sub_resource type="LabelSettings" id="LabelSettings_047uy"]
 font_size = 24
@@ -195,6 +195,12 @@ grow_vertical = 2
 text = "生命值: 100/100"
 horizontal_alignment = 1
 
+[node name="Speed2xButton" type="Button" parent="."]
+offset_left = 20.0
+offset_top = 237.0
+offset_bottom = 267.0
+text = "2X Speed"
+
 [node name="GameOverPanel" type="Panel" parent="."]
 anchors_preset = 8
 anchor_left = 0.5
@@ -271,69 +277,10 @@ layout_mode = 2
 script = ExtResource("2_6fi6k")
 metadata/_tab_index = 0
 
-[node name="DamageLabel" type="Label" parent="BottomPanel/属性"]
-layout_mode = 2
-text = "伤害: 5"
-
-[node name="AttackSpeedLabel" type="Label" parent="BottomPanel/属性"]
-layout_mode = 2
-text = "攻击速度: 1.0/秒"
-
-[node name="HealthLabel" type="Label" parent="BottomPanel/属性"]
-layout_mode = 2
-text = "生命值: 80/80"
-
-[node name="DefenseLabel" type="Label" parent="BottomPanel/属性"]
-layout_mode = 2
-text = "防御: 0.0%"
-
-[node name="DodgeChanceLabel" type="Label" parent="BottomPanel/属性"]
-layout_mode = 2
-text = "闪避率: 5.0%"
-
-[node name="PenetrationLabel" type="Label" parent="BottomPanel/属性"]
-layout_mode = 2
-text = "防御穿透: 0%"
-
-[node name="CritChanceLabel" type="Label" parent="BottomPanel/属性"]
-layout_mode = 2
-text = "暴击几率: 10%"
-
-[node name="CritMultiplierLabel" type="Label" parent="BottomPanel/属性"]
-layout_mode = 2
-text = "暴击倍率: 1.5x"
-
-[node name="FissionChanceLabel" type="Label" parent="BottomPanel/属性"]
-layout_mode = 2
-text = "裂变几率: 0%"
-
-[node name="DoubleChanceLabel" type="Label" parent="BottomPanel/属性"]
-layout_mode = 2
-text = "双连发几率: 30%"
-
-[node name="TripleChanceLabel" type="Label" parent="BottomPanel/属性"]
-layout_mode = 2
-text = "三连发几率: 10%"
-
-[node name="CrushBonusLabel" type="Label" parent="BottomPanel/属性"]
-layout_mode = 2
-text = "百分比伤害概率"
-
-[node name="BleedChanceLabel" type="Label" parent="BottomPanel/属性"]
-layout_mode = 2
-text = "流血概率"
-
 [node name="天赋" type="VBoxContainer" parent="BottomPanel"]
-visible = false
 layout_mode = 2
+script = ExtResource("3_v118s")
 metadata/_tab_index = 1
-script = ExtResource("3_v118s") # 挂载天赋树脚本
-
-[node name="TalentTitle" type="Label" parent="BottomPanel/天赋"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 24
-text = "天赋系统"
-horizontal_alignment = 1
 
 [node name="TalentDescription" type="Label" parent="BottomPanel/天赋"]
 layout_mode = 2

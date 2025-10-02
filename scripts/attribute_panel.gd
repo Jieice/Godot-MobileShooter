@@ -6,7 +6,7 @@ var player_node = null
 func _ready():
 	player_node = get_node("/root/Main/Player")
 	# 连接GameAttributes的信号
-	if GameAttributes.has_signal("attributes_changed"):
+	if GameAttributes.has_signal("attributes_changed") and not GameAttributes.is_connected("attributes_changed", Callable(self, "_on_game_attributes_changed")):
 		GameAttributes.connect("attributes_changed", Callable(self, "_on_game_attributes_changed"))
 	
 	# 初始化所有属性标签
@@ -22,7 +22,16 @@ func _initialize_attribute_labels():
 		{"name": "AttackSpeedLabel", "label": "攻击速度: "},
 		{"name": "DefenseLabel", "label": "防御: "},
 		{"name": "DodgeChanceLabel", "label": "闪避率: "},
-		{"name": "PenetrationCountLabel", "label": "穿透数量: "}
+		{"name": "PenetrationCountLabel", "label": "穿透数量: "},
+		{"name": "CritChanceLabel", "label": "暴击率: "},
+		{"name": "PlayerSpeedLabel", "label": "移动速度: "},
+		{"name": "BulletDamageLabel", "label": "子弹伤害: "},
+		{"name": "BulletCooldownLabel", "label": "子弹冷却: "},
+		{"name": "PenetrationLabel", "label": "防御穿透: "},
+		{"name": "AttackRangeLabel", "label": "攻击范围: "},
+		{"name": "CritMultiplierLabel", "label": "暴击倍率: "},
+		{"name": "DoubleShotChanceLabel", "label": "双连发几率: "},
+		{"name": "TripleShotChanceLabel", "label": "三连发几率: "}
 	]
 	
 	for stat_info in stats_to_create:
@@ -47,11 +56,20 @@ func update_player_stats(): # 移除player参数，直接使用player_node
 			return
 
 	var stats = [
-		{"name": "HealthLabel", "label": "生命值: ", "value": str(player_node.health) + "/" + str(player_node.max_health)},
+		{"name": "HealthLabel", "label": "生命值: ", "value": str(GameAttributes.health) + "/" + str(GameAttributes.max_health)}, # 直接从GameAttributes获取生命值
 		{"name": "AttackSpeedLabel", "label": "攻击速度: ", "value": str(snapped(GameAttributes.attack_speed, 0.1)) + "x"},
 		{"name": "DefenseLabel", "label": "防御: ", "value": str(snappedf(GameAttributes.defense * 100, 0.1)) + "%"},
 		{"name": "DodgeChanceLabel", "label": "闪避率: ", "value": str(snappedf(GameAttributes.dodge_chance * 100, 0.1)) + "%"},
-		{"name": "PenetrationCountLabel", "label": "穿透数量: ", "value": str(GameAttributes.penetration_count)}
+		{"name": "PenetrationCountLabel", "label": "穿透数量: ", "value": str(GameAttributes.penetration_count)},
+		{"name": "CritChanceLabel", "label": "暴击率: ", "value": str(snappedf(GameAttributes.crit_chance * 100, 0.1)) + "%"},
+		{"name": "PlayerSpeedLabel", "label": "移动速度: ", "value": str(snapped(GameAttributes.player_speed, 0.1))},
+		{"name": "BulletDamageLabel", "label": "子弹伤害: ", "value": str(GameAttributes.bullet_damage)},
+		{"name": "BulletCooldownLabel", "label": "子弹冷却: ", "value": str(snapped(GameAttributes.bullet_cooldown, 0.01)) + "s"},
+		{"name": "PenetrationLabel", "label": "防御穿透: ", "value": str(snappedf(GameAttributes.penetration * 100, 0.1)) + "%"},
+		{"name": "AttackRangeLabel", "label": "攻击范围: ", "value": str(snapped(GameAttributes.attack_range, 0.1)) + "x"},
+		{"name": "CritMultiplierLabel", "label": "暴击倍率: ", "value": str(snapped(GameAttributes.crit_multiplier, 0.1)) + "x"},
+		{"name": "DoubleShotChanceLabel", "label": "双连发几率: ", "value": str(snappedf(GameAttributes.double_shot_chance * 100, 0.1)) + "%"},
+		{"name": "TripleShotChanceLabel", "label": "三连发几率: ", "value": str(snappedf(GameAttributes.triple_shot_chance * 100, 0.1)) + "%"}
 	]
 	for stat in stats:
 		var label = get_node_or_null(stat.name)

@@ -175,38 +175,101 @@ func stop_bleeding():
 		
 # 更新血条显示
 func update_health_bar():
-	# 计算健康百分比
-	var health_percent = (float(health) / max_health) * 100
-	$HealthBar.value = health_percent
-	
+	var health_bar = $HealthBar
 	# 检查是否为BOSS（通过分组或缩放比例判断）
 	var is_boss = is_in_group("boss") or scale.x >= 1.3 or scale.y >= 1.3
-	
-	# 更新血条文本显示
-	if $HealthBar.has_node("HealthLabel"):
-		if is_boss:
-			# BOSS显示具体血量
-			$HealthBar/HealthLabel.text = str(int(health)) + "/" + str(int(max_health))
-		else:
-			# 普通小怪只显示百分比
-			$HealthBar/HealthLabel.text = str(int(health_percent)) + "%"
+
+	# 获取或创建 ShieldOverlay (ColorRect)
+	var shield_overlay = health_bar.get_node_or_null("ShieldOverlay")
+	if not shield_overlay:
+		shield_overlay = ColorRect.new()
+		shield_overlay.name = "ShieldOverlay"
+		health_bar.add_child(shield_overlay)
+		# 设置为填充父级区域，以便通过 offset_right 控制宽度
+		shield_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		shield_overlay.color = get_shield_style_box().bg_color # 设置护盾颜色
+		shield_overlay.visible = false # 初始隐藏
+
+	# 计算护盾量（超出最大生命值的部分）
+	var shield_amount = max(0, health - max_health)
+
+	if is_boss and shield_amount > 0:
+		# BOSS 有护盾。显示基础血量为满，护盾作为叠加层
+		health_bar.max_value = max_health # 基础血量容量
+		health_bar.value = max_health # 基础血条显示为满（绿色）
+		health_bar.add_theme_stylebox_override("fill", get_health_style_box()) # 确保基础血条是绿色
+
+		shield_overlay.visible = true
+		# 计算护盾宽度，相对于 health_bar 的宽度
+		# 护盾的视觉宽度上限也为 health_bar 的宽度 (例如，如果护盾量也达到 max_health，则完全覆盖)
+		var shield_fill_ratio = float(min(shield_amount, max_health)) / max_health
+		
+		# 通过 offset_right 控制 ColorRect 的宽度
+		shield_overlay.offset_right = health_bar.get_rect().size.x * shield_fill_ratio
+		shield_overlay.offset_left = 0 # 从左侧开始填充
+
+		# 更新血量标签，显示基础血量 + 护盾
+		_create_or_update_health_label(health_bar, str(int(max_health)) + " + 护盾: " + str(int(shield_amount)), true)
 	else:
-		# 如果没有标签节点，创建一个
-		var label = Label.new()
+		# 无护盾，或不是BOSS，显示正常血量
+		health_bar.max_value = max_health
+		health_bar.value = health
+		health_bar.add_theme_stylebox_override("fill", get_health_style_box()) # 确保是绿色
+
+		shield_overlay.visible = false # 隐藏护盾层
+
+		# 根据是否是BOSS更新标签
+		var label_text
+		if is_boss: # 对于没有护盾的 BOSS，显示正常血量 (例如 50/100)
+			label_text = str(int(health)) + "/" + str(int(max_health))
+		else: # 普通敌人
+			var health_percent = (float(health) / max_health) * 100
+			label_text = str(int(health_percent)) + "%"
+		_create_or_update_health_label(health_bar, label_text, is_boss)
+
+
+# 返回一个 StyleBoxFlat，用于默认血条颜色 (绿色)
+func get_health_style_box() -> StyleBoxFlat:
+	var style_box = StyleBoxFlat.new()
+	style_box.bg_color = Color(0.2, 0.8, 0.2, 1) # 绿色
+	style_box.border_width_left = 1
+	style_box.border_width_top = 1
+	style_box.border_width_right = 1
+	style_box.border_width_bottom = 1
+	style_box.border_color = Color(0.1, 0.4, 0.1, 1)
+	style_box.corner_radius_top_left = 2
+	style_box.corner_radius_top_right = 2
+	style_box.corner_radius_bottom_left = 2
+	style_box.corner_radius_bottom_right = 2
+	return style_box
+
+# 返回一个 StyleBoxFlat，用于护盾条颜色 (浅蓝色)
+func get_shield_style_box() -> StyleBoxFlat:
+	var style_box = StyleBoxFlat.new()
+	style_box.bg_color = Color(0.2, 0.2, 1.0, 1) # 浅蓝色
+	style_box.border_width_left = 1
+	style_box.border_width_top = 1
+	style_box.border_width_right = 1
+	style_box.border_width_bottom = 1
+	style_box.border_color = Color(0.1, 0.1, 0.5, 1)
+	style_box.corner_radius_top_left = 2
+	style_box.corner_radius_top_right = 2
+	style_box.corner_radius_bottom_left = 2
+	style_box.corner_radius_bottom_right = 2
+	return style_box
+
+# 辅助函数：创建或更新血量标签
+func _create_or_update_health_label(health_bar: ProgressBar, text_content: String, _is_boss_label: bool):
+	var label = health_bar.get_node_or_null("HealthLabel")
+	if not label:
+		label = Label.new()
 		label.name = "HealthLabel"
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		
-		if is_boss:
-			# BOSS显示具体血量
-			label.text = str(int(health)) + "/" + str(int(max_health))
-		else:
-			# 普通小怪只显示百分比
-			label.text = str(int(health_percent)) + "%"
-		
 		label.add_theme_color_override("font_color", Color(1, 1, 1)) # 白色文本
 		label.add_theme_font_size_override("font_size", 12) # 设置字体大小
-		$HealthBar.add_child(label)
+		health_bar.add_child(label)
+	label.text = text_content
 
 # 敌人死亡
 func die():
