@@ -185,56 +185,81 @@ func update_health_bar():
 	var health_bar = get_node_or_null("HealthBar")
 	if health_bar == null:
 		return
-	# 检查是否为BOSS（通过分组或缩放比例判断）
-	var is_boss = is_in_group("boss") or scale.x >= 1.3 or scale.y >= 1.3
 
-	# 获取或创建 ShieldOverlay (ColorRect)
-	var shield_overlay = health_bar.get_node_or_null("ShieldOverlay")
-	if not shield_overlay:
-		shield_overlay = ColorRect.new()
-		shield_overlay.name = "ShieldOverlay"
-		health_bar.add_child(shield_overlay)
-		# 设置为填充父级区域，以便通过 offset_right 控制宽度
-		shield_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		shield_overlay.color = get_shield_style_box().bg_color # 设置护盾颜色
-		shield_overlay.visible = false # 初始隐藏
+	# 类型判断
+	var is_boss = enemy_type == "boss" or is_in_group("enemy_boss")
+	var is_elite = enemy_type == "elite" or is_in_group("enemy_elite")
 
-	# 计算护盾量（超出最大生命值的部分）
-	var shield_amount = max(0, health - max_health)
-
-	if is_boss and shield_amount > 0:
-		# BOSS 有护盾。显示基础血量为满，护盾作为叠加层
-		health_bar.max_value = max_health # 基础血量容量
-		health_bar.value = max_health # 基础血条显示为满（绿色）
-		health_bar.add_theme_stylebox_override("fill", get_health_style_box()) # 确保基础血条是绿色
-
-		shield_overlay.visible = true
-		# 计算护盾宽度，相对于 health_bar 的宽度
-		# 护盾的视觉宽度上限也为 health_bar 的宽度 (例如，如果护盾量也达到 max_health，则完全覆盖)
-		var shield_fill_ratio = float(min(shield_amount, max_health)) / max_health
-		
-		# 通过 offset_right 控制 ColorRect 的宽度
-		shield_overlay.offset_right = health_bar.get_rect().size.x * shield_fill_ratio
-		shield_overlay.offset_left = 0 # 从左侧开始填充
-
-		# 更新血量标签，显示基础血量 + 护盾
-		_create_or_update_health_label(health_bar, str(int(max_health)) + " + 护盾: " + str(int(shield_amount)), true)
+	# 颜色和粗细
+	var fill_style = null
+	if is_boss:
+		fill_style = StyleBoxFlat.new()
+		fill_style.bg_color = Color(0.9, 0.1, 0.1, 1) # 红色
+		fill_style.border_width_top = 2
+		fill_style.border_width_bottom = 2
+		fill_style.border_color = Color(1, 0.3, 0.3, 1)
+		fill_style.corner_radius_top_left = 4
+		fill_style.corner_radius_top_right = 4
+		fill_style.corner_radius_bottom_left = 4
+		fill_style.corner_radius_bottom_right = 4
+		health_bar.custom_minimum_size = Vector2(80, 14)
+	elif is_elite:
+		fill_style = StyleBoxFlat.new()
+		fill_style.bg_color = Color(1, 0.5, 0, 1) # 橙色
+		fill_style.border_width_top = 1
+		fill_style.border_width_bottom = 1
+		fill_style.border_color = Color(1, 0.7, 0.2, 1)
+		fill_style.corner_radius_top_left = 3
+		fill_style.corner_radius_top_right = 3
+		fill_style.corner_radius_bottom_left = 3
+		fill_style.corner_radius_bottom_right = 3
+		health_bar.custom_minimum_size = Vector2(70, 10)
 	else:
-		# 无护盾，或不是BOSS，显示正常血量
-		health_bar.max_value = max_health
-		health_bar.value = health
-		health_bar.add_theme_stylebox_override("fill", get_health_style_box()) # 确保是绿色
+		fill_style = StyleBoxFlat.new()
+		fill_style.bg_color = Color(0.2, 0.8, 0.2, 1) # 绿色
+		fill_style.border_width_top = 1
+		fill_style.border_width_bottom = 1
+		fill_style.border_color = Color(0.1, 0.4, 0.1, 1)
+		fill_style.corner_radius_top_left = 2
+		fill_style.corner_radius_top_right = 2
+		fill_style.corner_radius_bottom_left = 2
+		fill_style.corner_radius_bottom_right = 2
+		health_bar.custom_minimum_size = Vector2(60, 8)
 
-		shield_overlay.visible = false # 隐藏护盾层
+	# 只在未自定义 fill 时才覆盖
+	if not health_bar.has_theme_stylebox_override("fill"):
+		health_bar.add_theme_stylebox_override("fill", fill_style)
 
-		# 根据是否是BOSS更新标签
-		var label_text
-		if is_boss: # 对于没有护盾的 BOSS，显示正常血量 (例如 50/100)
-			label_text = str(int(health)) + "/" + str(int(max_health))
-		else: # 普通敌人
-			var health_percent = (float(health) / max_health) * 100
-			label_text = str(int(health_percent)) + "%"
-		_create_or_update_health_label(health_bar, label_text, is_boss)
+	health_bar.max_value = max_health
+	health_bar.value = max(0, health)
+
+	# Label内容
+	var label = health_bar.get_node_or_null("HealthLabel")
+	if not label:
+		label = Label.new()
+		label.name = "HealthLabel"
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		label.add_theme_color_override("font_color", Color(1, 1, 1))
+		label.add_theme_font_size_override("font_size", 16 if is_boss else 12)
+		health_bar.add_child(label)
+
+	if is_boss:
+		label.text = str(int(health)) + " / " + str(int(max_health)) + " (" + str(int(100 * health / max_health)) + "%)"
+		label.visible = true
+	elif is_elite:
+		label.text = str(int(health)) + " / " + str(int(max_health)) + " (" + str(int(100 * health / max_health)) + "%)"
+		label.visible = true
+	else:
+		label.visible = false
+
+# 自动让label居中并悬浮在血条上方（仅精英和BOSS）
+	if (is_boss or is_elite) and label.visible:
+		await get_tree().process_frame # 等待一帧，确保label.size已更新
+		label.position = Vector2(
+			(health_bar.size.x - label.size.x) / 2,
+			- label.size.y - 2 # 2像素间距
+		)
 
 
 # 返回一个 StyleBoxFlat，用于默认血条颜色 (绿色)
