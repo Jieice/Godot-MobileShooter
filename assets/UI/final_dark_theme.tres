@@ -1,0 +1,62 @@
+[gd_resource type="Theme" load_steps=8 format=3 uid="uid://cc1tv5fsfdwgj"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_fmaqj"]
+bg_color = Color(0.288518, 0.28851798, 0.28851798, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_xjcug"]
+bg_color = Color(0.31431624, 0.31431606, 0.3143161, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_cgv4o"]
+bg_color = Color(0.2, 0.2, 0.2, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.6419339, 0.64193404, 0.64193374, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_lonwc"]
+bg_color = Color(0.04755766, 0.047557645, 0.047557645, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.5609549, 0.5609549, 0.5609547, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_e3eu7"]
+bg_color = Color(0.13333334, 0.13333334, 0.13333334, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.011087579, 0.011087578, 0.01108758, 1)
+corner_detail = 10
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pek71"]
+bg_color = Color(0.2665752, 0.26657522, 0.26657507, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_nwqal"]
+bg_color = Color(0.2, 0.6, 1, 1)
+
+[resource]
+Button/colors/font_color = Color(1, 1, 1, 1)
+Button/colors/font_hover_color = Color(1, 1, 1, 1)
+Button/colors/font_pressed_color = Color(0.7204674, 0.7204675, 0.7204674, 1)
+Button/colors/icon_disabled_color = Color(0.103743516, 0.10374353, 0.103743516, 1)
+Button/styles/disabled = SubResource("StyleBoxFlat_fmaqj")
+Button/styles/hover = SubResource("StyleBoxFlat_xjcug")
+Button/styles/normal = SubResource("StyleBoxFlat_cgv4o")
+Button/styles/pressed = SubResource("StyleBoxFlat_lonwc")
+Label/colors/font_color = Color(1, 1, 1, 1)
+Label/colors/font_shadow_color = Color(0, 0, 0, 0.49019608)
+Label/font_sizes/font_size = 16
+Panel/styles/panel = SubResource("StyleBoxFlat_e3eu7")
+ProgressBar/styles/background = SubResource("StyleBoxFlat_pek71")
+ProgressBar/styles/fill = SubResource("StyleBoxFlat_nwqal")

@@ -71,8 +71,8 @@ func _initialize_display():
 	# 初始化分数显示
 	_on_score_updated(_game_manager.score)
 	
-	# 初始化钻石显示
-	_on_diamonds_changed(GameAttributes.diamonds)
+	# 初始化钻石显示，进行null检查
+	_on_diamonds_changed(GameAttributes.diamonds if GameAttributes.diamonds != null else 0)
 	
 	# 初始化血条
 	update_health_bar(_player.health, _player.max_health)
@@ -83,7 +83,8 @@ func _initialize_display():
 	# 初始化经验条
 	var level_manager = get_node("/root/LevelManager")
 	if level_manager:
-		update_exp_bar(level_manager.player_exp, level_manager.exp_to_next_level)
+		update_exp_bar(level_manager.player_exp if level_manager.player_exp != null else 0, \
+					 level_manager.exp_to_next_level if level_manager.exp_to_next_level != null else 100)
 	else:
 		print("HUD: 警告: 无法找到LevelManager节点，经验条初始化失败")
 	
@@ -133,7 +134,7 @@ func update_exp_bar(current_exp: int, required_exp: int):
 			exp_bar.modulate = Color(0.2, 0.6, 1.0, 1) # 默认蓝色
 
 # 更新关卡显示
-func update_level_display(level_number: int = null, level_data: Dictionary = {}):
+func update_level_display(level_number: Variant = null, _level_data: Dictionary = {}):
 	print("HUD: update_level_display() called")
 	if has_node("LevelUI/LevelPanel/InGameLevel"):
 		if level_number != null:
@@ -174,7 +175,7 @@ func _on_player_level_up(level):
 	if talent_panel and talent_panel.has_method("_refresh"):
 		talent_panel._refresh()
 
-func _on_talent_points_changed(talent_points):
+func _on_talent_points_changed(_talent_points):
 	# 刷新天赋面板UI
 	var talent_panel = get_node_or_null("BottomPanel/天赋") # 假设天赋面板在BottomPanel下，且节点名为"天赋"
 	if talent_panel and talent_panel.has_method("_refresh"):

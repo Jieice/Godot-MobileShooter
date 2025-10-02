@@ -111,9 +111,9 @@ var talent_definitions = {
 		"cost_per_level": [1, 1, 1],
 		"required_levels": [1, 12, 25],
 		"effects": [
-			{"attribute": "kill_energy_chance", "value": 0.05}, 
-			{"attribute": "kill_energy_chance", "value": 0.05}, 
-			{"attribute": "kill_energy_chance", "value": 0.10} 
+			{"attribute": "kill_energy_chance", "value": 0.05},
+			{"attribute": "kill_energy_chance", "value": 0.05},
+			{"attribute": "kill_energy_chance", "value": 0.10}
 		],
 		"descriptions": ["击杀回血概率+5%", "击杀回血概率+5%", "击杀回血概率+10%"]
 	},
@@ -352,8 +352,7 @@ func get_used_talent_points():
 func get_remaining_talent_points():
 	var level_manager = get_node("/root/LevelManager")
 	if level_manager:
-		# 总天赋点数由LevelManager提供
-		return level_manager.total_talent_points - get_used_talent_points() # 从总点数减去已使用点数
+		return level_manager.talent_points
 	return 0
 
 # 重置天赋（用于测试）

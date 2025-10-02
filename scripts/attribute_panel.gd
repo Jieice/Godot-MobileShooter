@@ -37,13 +37,25 @@ func _initialize_attribute_labels():
 		{"name": "DualTargetLabel", "label": "双目标锁定: "},
 		{"name": "ChainLightningChanceLabel", "label": "连锁闪电几率: "}
 	]
-	
+	# 获取GridContainer
+	var grid = get_node_or_null("AttributesGrid")
+	if not grid:
+		push_error("AttributesGrid not found in AttributePanel!")
+		return
+	# 清空GridContainer
+	for child in grid.get_children():
+		child.queue_free()
 	for stat_info in stats_to_create:
-		var existing_label = get_node_or_null(stat_info.name)
+		var existing_label = grid.get_node_or_null(stat_info.name)
 		if not existing_label:
 			var new_label = Label.new()
 			new_label.name = stat_info.name
-			add_child(new_label)
+			new_label.text = stat_info.label
+			# 可选：设置字体大小和最小宽度
+			new_label.add_theme_font_size_override("font_size", 20)
+			new_label.custom_minimum_size = Vector2(120, 32)
+			new_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL # 让每列均分
+			grid.add_child(new_label)
 
 # 当GameAttributes属性变化时更新
 func _on_game_attributes_changed(attribute_name, value):
@@ -60,7 +72,7 @@ func update_player_stats(): # 移除player参数，直接使用player_node
 			return
 
 	var stats = [
-		{"name": "HealthLabel", "label": "生命值: ", "value": str(GameAttributes.health) + "/" + str(GameAttributes.max_health)}, # 直接从GameAttributes获取生命值
+		{"name": "HealthLabel", "label": "生命值: ", "value": str(GameAttributes.health) + "/" + str(GameAttributes.max_health)},
 		{"name": "AttackSpeedLabel", "label": "攻击速度: ", "value": str(snapped(GameAttributes.attack_speed, 0.1)) + "x"},
 		{"name": "DefenseLabel", "label": "防御: ", "value": str(snappedf(GameAttributes.defense * 100, 0.1)) + "%"},
 		{"name": "DodgeChanceLabel", "label": "闪避率: ", "value": str(snappedf(GameAttributes.dodge_chance * 100, 0.1)) + "%"},
@@ -79,12 +91,12 @@ func update_player_stats(): # 移除player参数，直接使用player_node
 		{"name": "DualTargetLabel", "label": "双目标锁定: ", "value": ("是" if GameAttributes.dual_target_enabled else "否")},
 		{"name": "ChainLightningChanceLabel", "label": "连锁闪电几率: ", "value": str(snappedf(GameAttributes.chain_lightning_chance * 100, 0.1)) + "%"}
 	]
+	# 获取GridContainer
+	var grid = get_node_or_null("AttributesGrid")
+	if not grid:
+		push_error("AttributesGrid not found in AttributePanel!")
+		return
 	for stat in stats:
-		var label = get_node_or_null(stat.name)
+		var label = grid.get_node_or_null(stat.name)
 		if label:
 			label.text = stat["label"] + stat["value"]
-		# else: # 移除动态创建标签的逻辑，因为_initialize_attribute_labels已经创建了
-		#	var new_label = Label.new()
-		#	new_label.name = stat.name
-		#	new_label.text = stat["label"] + stat["value"]
-		#	add_child(new_label)

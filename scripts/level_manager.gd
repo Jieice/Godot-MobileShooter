@@ -314,6 +314,7 @@ func level_up():
 	# 每升1级获得1点天赋点（总共30级=30点）
 	talent_points += 1
 	total_talent_points += 1
+	print("LevelManager: 升级后天赋点: ", talent_points, " 总天赋点: ", total_talent_points)
 	emit_signal("talent_points_changed", talent_points)
 	print("获得天赋点! 当前天赋点: ", talent_points)
 	

@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=4 uid="uid://bqnhgvdvj6gxs"]
+[gd_scene load_steps=16 format=4 uid="uid://bqnhgvdvj6gxs"]
 
 [ext_resource type="Script" uid="uid://dirhgikghx3yy" path="res://scripts/game_manager.gd" id="1_0ygmj"]
 [ext_resource type="Script" uid="uid://cmd1k36n2d0kh" path="res://scripts/talents.gd" id="1_talents_script"]
@@ -7,10 +7,11 @@
 [ext_resource type="Script" uid="uid://bp5g7041scqt2" path="res://scripts/enemy_spawner.gd" id="3_2ynop"]
 [ext_resource type="PackedScene" uid="uid://c8j6y4q3xgkwv" path="res://scenes/enemy.tscn" id="3_enemy_scene"]
 [ext_resource type="Texture2D" uid="uid://cfmecc5nx6aoq" path="res://assets/sprites/tilemap_packed.png" id="7_o6xl0"]
-[ext_resource type="PackedScene" path="res://scenes/enemy_normal.tscn" id="7_ya4ey"]
-[ext_resource type="PackedScene" path="res://scenes/enemy_elite.tscn" id="8_eb6dy"]
+[ext_resource type="PackedScene" uid="uid://cmrixe6xtxv3n" path="res://scenes/enemy_normal.tscn" id="7_ya4ey"]
+[ext_resource type="PackedScene" uid="uid://u7brs46k6vja" path="res://scenes/enemy_elite.tscn" id="8_eb6dy"]
 [ext_resource type="PackedScene" uid="uid://bld8jks2mhktu" path="res://scenes/hud.tscn" id="8_tipki"]
-[ext_resource type="PackedScene" path="res://scenes/enemy_boss.tscn" id="9_trceg"]
+[ext_resource type="PackedScene" uid="uid://dg4njxk1asr2c" path="res://scenes/enemy_boss.tscn" id="9_trceg"]
+[ext_resource type="Script" uid="uid://br0j1o0tptpca" path="res://scripts/level_manager.gd" id="12_eb6dy"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_tipki"]
 texture = ExtResource("7_o6xl0")
@@ -248,3 +249,6 @@ enemy_boss_scene = ExtResource("9_trceg")
 script = ExtResource("1_talents_script")
 
 [node name="UI" parent="." instance=ExtResource("8_tipki")]
+
+[node name="LevelManager" type="Node" parent="."]
+script = ExtResource("12_eb6dy")
