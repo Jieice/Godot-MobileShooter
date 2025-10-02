@@ -139,6 +139,67 @@ func _on_body_entered(body):
 			damage *= 0.9 # 每次穿透后伤害降低10%
 			print("子弹穿透! 剩余穿透次数: ", max_penetration - penetration_count)
 		
+		# 连锁闪电效果
+		if GameAttributes.chain_lightning_chance > 0 and body.is_in_group("enemy"):
+			if randf() <= GameAttributes.chain_lightning_chance:
+				var nearest_enemy = null
+				var min_dist = INF
+				for enemy in get_tree().get_nodes_in_group("enemy"):
+					if enemy != body and enemy.is_alive:
+						var dist = body.global_position.distance_to(enemy.global_position)
+						if dist < min_dist:
+							min_dist = dist
+							nearest_enemy = enemy
+				if nearest_enemy:
+					# 用Line2D锯齿线代替SVG，准确连接两敌人
+					var lightning = Line2D.new()
+					lightning.width = 10
+					lightning.default_color = Color(1.0, 0.95, 0.4) # 亮黄
+					var start = body.global_position
+					var end = nearest_enemy.global_position
+					var points = []
+					var segs = 8
+					var phase = randf() * PI * 2 # 每次生成随机相位，模拟动画
+					for i in range(segs + 1):
+						var t = float(i) / segs
+						var pos = start.lerp(end, t)
+						var normal = (end - start).normalized().orthogonal()
+						var amp = 12.0 * (1.0 - abs(t - 0.5) * 2)
+						var offset = normal * sin(t * PI * segs + phase) * amp
+						points.append(pos + offset)
+					lightning.points = points
+					lightning.z_index = 100
+					# 颜色渐变
+					var grad = Gradient.new()
+					grad.colors = [Color(1, 1, 0.4, 0.8), Color(1, 1, 1, 0.8), Color(0.5, 0.8, 1, 0.8)]
+					lightning.gradient = grad
+					# 宽度曲线：两头极细，中间细
+					var curve = Curve.new()
+					curve.add_point(Vector2(0, 0.05))
+					curve.add_point(Vector2(0.5, 0.4))
+					curve.add_point(Vector2(1, 0.05))
+					lightning.width_curve = curve
+					# 动画：0.2秒后淡出
+					var tween = get_tree().create_tween()
+					tween.tween_property(lightning, "modulate:a", 0.0, 0.2)
+					tween.tween_callback(lightning.queue_free)
+					# 0.2秒后移除特效（保险）
+					get_tree().get_root().add_child(lightning)
+					lightning.call_deferred("_add_timer_and_start")
+					# 造成弹射伤害（50%）
+					if nearest_enemy.has_method("take_damage"):
+						nearest_enemy.take_damage(damage * 0.5)
+					# 颜色渐变
+					grad = Gradient.new()
+					grad.colors = [Color(1, 1, 0.4), Color(1, 1, 1), Color(0.5, 0.8, 1)]
+					lightning.gradient = grad
+					# 宽度曲线
+					curve = Curve.new()
+					curve.add_point(Vector2(0, 0.2))
+					curve.add_point(Vector2(0.5, 1.0))
+					curve.add_point(Vector2(1, 0.2))
+					lightning.width_curve = curve
+
 # 显示暴击文本
 func show_crit_text(pos, _enemy = null):
 	# 创建一个Label节点
