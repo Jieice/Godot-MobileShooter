@@ -249,7 +249,7 @@ func spawn_boss():
 
 # 敌人生成定时器超时时调用
 func _on_spawn_timer_timeout():
-	print("定时器超时，尝试生成敌人，spawn_active=", spawn_active)
+	print("[EnemySpawner] _on_spawn_timer_timeout called, spawn_active=", spawn_active)
 	if not spawn_active:
 		return # 如果生成不活跃，则不执行任何操作
 
@@ -287,7 +287,7 @@ func _on_wave_timer_timeout():
 
 # 生成普通敌人（is_boss 参数用于区分普通敌人和 BOSS，但 BOSS 通常通过 spawn_boss() 单独生成）
 func spawn_enemy(is_boss = false):
-	print("调用 spawn_enemy，is_boss=", is_boss)
+	print("[EnemySpawner] spawn_enemy called, is_boss=", is_boss)
 	var enemy = null
 	var type_str = "normal"
 	# 50%概率生成精英怪
