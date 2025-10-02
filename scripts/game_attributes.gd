@@ -8,8 +8,8 @@ signal diamonds_changed(new_diamonds) # 新增信号，表示钻石数量已更�
 
 # === 可在Inspector中编辑的玩家基础属性（如挂载到场景节点时） ===
 @export var bullet_damage: float = 5.0 # 玩家子弹基础伤害
-@export var bullet_cooldown: float = 0.2 # 子弹冷却时间（秒）
-@export var attack_speed: float = 2 # 攻速倍率
+@export var bullet_cooldown: float = 0.5 # 子弹冷却时间（秒）
+@export var attack_speed: float = 1.5 # 攻速倍率
 @export var player_speed: float = 300.0 # 玩家移动速度
 @export var max_health: float = 100.0 # 最大生命值
 @export var health: float = 100.0 # 当前生命值

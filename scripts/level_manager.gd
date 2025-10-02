@@ -63,6 +63,7 @@ func get_level_config():
 	var config = {
 		"health_multiplier": 1.0,
 		"speed_multiplier": 1.0,
+		"damage_multiplier": 1.0,
 		"enemies_per_wave": 8, # 默认值从 5 增加到 8
 		"wave_interval": 8.0,
 		"has_boss": false,
@@ -78,6 +79,7 @@ func get_level_config():
 			# 新手期（1-5关）血量1倍、移速1倍、每波4只、间隔4秒
 			config.health_multiplier = 1.0
 			config.speed_multiplier = 1.0
+			config.damage_multiplier = 1.0
 			config.enemies_per_wave = 4
 			config.wave_interval = 4.0
 			
@@ -85,6 +87,7 @@ func get_level_config():
 			# 过渡期（6-10关）血量1.2倍、移速1.1倍、每波6只
 			config.health_multiplier = 1.2
 			config.speed_multiplier = 1.1
+			config.damage_multiplier = 1.05
 			config.enemies_per_wave = 6
 			config.wave_interval = 5.0
 			# 10关伪BOSS
@@ -98,6 +101,7 @@ func get_level_config():
 			# 成长期（11-15关）血量1.5倍、移速1.3倍、每波10只
 			config.health_multiplier = 1.5
 			config.speed_multiplier = 1.3
+			config.damage_multiplier = 1.1
 			config.enemies_per_wave = 10
 			config.wave_interval = 6.0
 			# 15关伪BOSS
@@ -111,6 +115,7 @@ func get_level_config():
 			# 成熟期（16-20关）血量1.8倍、移速1.5倍、每波12只
 			config.health_multiplier = 1.8
 			config.speed_multiplier = 1.5
+			config.damage_multiplier = 1.15
 			config.enemies_per_wave = 12
 			config.wave_interval = 5.0
 			# 20关伪BOSS
@@ -126,6 +131,7 @@ func get_level_config():
 			var base_multiplier = get_loop_multiplier()
 			config.health_multiplier = 1.8 * base_multiplier
 			config.speed_multiplier = 1.5 * base_multiplier
+			config.damage_multiplier = 1.15 * pow(1.05, (current_level - 20) / 5)
 			config.enemies_per_wave = min(15, int(floor(12.0 * base_multiplier)))
 			config.wave_interval = max(2.5, 5.0 - (base_multiplier - 1.0) * 2.0)
 			if current_level % 5 == 0:
@@ -180,6 +186,7 @@ func start_level(level_number):
 		enemy_spawner.boss_effects = level_config.boss_effects
 		enemy_spawner.additional_enemies = level_config.additional_enemies
 		enemy_spawner.current_level = current_level
+		enemy_spawner.damage_multiplier = level_config.damage_multiplier
 		print("LevelManager: EnemySpawner配置: spawn_interval=", enemy_spawner.spawn_interval, ", enemies_per_wave=", enemy_spawner.enemies_per_wave)
 	
 	# 发送关卡开始信号

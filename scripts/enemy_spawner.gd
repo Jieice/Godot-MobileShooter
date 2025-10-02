@@ -11,6 +11,7 @@ extends Node2D
 # 关卡系统相关变量，由 LevelManager 配置
 var health_multiplier = 1.0 # 敌人生命值乘数，由 LevelManager 根据关卡难度设置
 var speed_multiplier = 1.0 # 敌人速度乘数，由 LevelManager 根据关卡难度设置
+var damage_multiplier = 1.0 # 新增：敌人伤害乘数，由 LevelManager 设置
 var enemies_per_wave = 8 # 每波普通敌人生成的数量，由 LevelManager 根据关卡配置设置
 var has_boss = false # 当前关卡波次是否会生成 BOSS，由 LevelManager 设置
 var boss_scale = 1.5 # BOSS 的缩放比例，由 LevelManager 设置
@@ -191,7 +192,9 @@ func spawn_boss():
 	# 设置 BOSS 属性
 	enemy.target = player
 	enemy.health *= boss_health_multiplier * health_multiplier
+	enemy.max_health = enemy.health
 	enemy.speed *= speed_multiplier
+	enemy.damage *= damage_multiplier
 	enemy.scale = Vector2(boss_scale, boss_scale)
 	
 	# 应用 BOSS 特殊效果（如红色边框、加速、范围减速）
@@ -288,7 +291,7 @@ func spawn_enemy(is_boss = false):
 	var enemy = null
 	var type_str = "normal"
 	# 50%概率生成精英怪
-	if not is_boss and randf() < 0.5:
+	if not is_boss and randf() < 0.2:
 		type_str = "elite"
 		print("[spawn_enemy] 生成精英怪 type_str=elite")
 	if is_boss:
@@ -317,8 +320,9 @@ func spawn_enemy(is_boss = false):
 	enemy.get_node("Sprite2D").modulate = type_config.color
 	enemy.scale = Vector2(type_config.scale, type_config.scale)
 	enemy.health = enemy.health * type_config.health_mod * health_multiplier
+	enemy.max_health = enemy.health
 	enemy.speed = enemy.speed * type_config.speed_mod * speed_multiplier
-	enemy.damage = enemy.damage * type_config.damage_mod
+	enemy.damage = enemy.damage * type_config.damage_mod * damage_multiplier
 	enemy.score_value = type_config.score
 	# 连接敌人死亡信号到 GameManager (增加分数) 和 LevelManager (更新进度和经验)
 	enemy.connect("enemy_died", Callable(get_node("/root/Main/GameManager"), "add_score").bind(enemy.score_value))
