@@ -152,7 +152,9 @@ func _ready():
 
 # 开始指定关卡
 func start_level(level_number, wave := 0, progress := 0):
-	print("LevelManager: start_level() called with level_number: ", level_number, ", wave: ", wave, ", progress: ", progress)
+	print("LevelManager: start_level() called with level_number:", level_number)
+	var enemy_spawner = get_parent().get_node_or_null("EnemySpawner")
+	print("LevelManager: enemy_spawner =", enemy_spawner)
 	if level_number < 1:
 		push_error("无效的关卡编号: " + str(level_number))
 		return
@@ -175,9 +177,8 @@ func start_level(level_number, wave := 0, progress := 0):
 			target_progress += level_config.additional_enemies
 	
 	# 配置敌人生成器
-	var enemy_spawner = get_node_or_null("/root/Main/EnemySpawner") # 直接获取 EnemySpawner 节点
 	if enemy_spawner:
-		print("LevelManager: 成功获取 EnemySpawner") # 添加此行
+		print("LevelManager: 成功获取 EnemySpawner")
 		enemy_spawner.health_multiplier = level_config.health_multiplier
 		enemy_spawner.speed_multiplier = level_config.speed_multiplier
 		enemy_spawner.spawn_interval = level_config.wave_interval

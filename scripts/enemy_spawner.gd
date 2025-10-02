@@ -121,6 +121,7 @@ func stop():
 
 # 开始关卡，由 LevelManager 调用
 func start_level():
+	print("EnemySpawner: start_level() called!")
 	# 重置波次和敌人计数
 	wave_count = 0
 	current_wave_enemies = 0

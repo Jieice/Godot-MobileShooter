@@ -20,6 +20,23 @@ var _restart_temp_diamonds = 0
 var _restart_temp_2x = false
 
 func _ready():
+	print("main.tscn loaded!")
+	print("GameManager ready!")
+	call_deferred("_init_after_ready")
+
+func _init_after_ready():
+	var enemy_spawner = get_parent().get_node_or_null("EnemySpawner")
+	if enemy_spawner == null:
+		print("EnemySpawner not found!")
+	else:
+		print("EnemySpawner:", enemy_spawner)
+	level_manager = get_parent().get_node_or_null("LevelManager")
+	if level_manager == null:
+		print("LevelManager not found!")
+	else:
+		print("LevelManager:", level_manager)
+		print("GameManager: 主动启动关卡", level_manager.current_level)
+		level_manager.start_level(level_manager.current_level)
 	print("GameManager._ready: Global.restart_temp_score=", Global.restart_temp_score, ", Global.restart_temp_diamonds=", Global.restart_temp_diamonds)
 	print("GameManager: _ready() called, Global.restart_level_number=", Global.restart_level_number)
 	add_to_group("game_manager")
@@ -35,7 +52,6 @@ func _ready():
 		player.connect("player_died", Callable(self, "game_over"))
 	
 	print("GameManager: 尝试获取LevelManager...")
-	level_manager = get_node_or_null("/root/LevelManager")
 	if not level_manager:
 		print("GameManager: 警告: 无法找到LevelManager节点, level_manager is Nil!")
 		return
