@@ -10,6 +10,9 @@ var current_level_config # 保存当前关卡配置
 
 var level_manager # 类成员变量
 
+# 静态变量：重启时保留的数据
+var restart_persistent_data = {}
+
 func _ready():
 	print("GameManager: _ready() called")
 	add_to_group("game_manager")
@@ -29,7 +32,27 @@ func _ready():
 	level_manager = get_node_or_null("/root/LevelManager") # 直接赋值给类成员变量
 	if level_manager:
 		print("GameManager: 成功获取LevelManager: ", level_manager)
-		level_manager.start_level(1)
+		# 检查是否有重启保留数据
+		if restart_persistent_data.size() > 0:
+			print("GameManager: 检测到重启保留数据，恢复...")
+			if restart_persistent_data.has("player_level"): level_manager.player_level = restart_persistent_data["player_level"]
+			if restart_persistent_data.has("player_exp"): level_manager.player_exp = restart_persistent_data["player_exp"]
+			if restart_persistent_data.has("exp_to_next_level"): level_manager.exp_to_next_level = restart_persistent_data["exp_to_next_level"]
+			if restart_persistent_data.has("current_level"): level_manager.current_level = restart_persistent_data["current_level"]
+			if restart_persistent_data.has("talent_points"): level_manager.talent_points = restart_persistent_data["talent_points"]
+			if restart_persistent_data.has("total_talent_points"): level_manager.total_talent_points = restart_persistent_data["total_talent_points"]
+			print("GameManager: 已恢复LevelManager数据，当前关卡:", level_manager.current_level)
+			level_manager.update_player_attributes()
+			level_manager.start_level(level_manager.current_level)
+			if restart_persistent_data.has("player_talents"):
+				var talents = get_node_or_null("/root/Talents")
+				if talents:
+					talents.player_talents = restart_persistent_data["player_talents"].duplicate(true)
+					print("GameManager: 已恢复天赋数据")
+			restart_persistent_data.clear()
+		else:
+			print("GameManager: 无重启保留数据，进入默认第一关")
+			level_manager.start_level(1)
 	else:
 		print("GameManager: 警告: 无法找到LevelManager节点, level_manager is Nil!")
 	
@@ -53,6 +76,35 @@ func _ready():
 	survival_timer.one_shot = false
 	add_child(survival_timer)
 	survival_timer.connect("timeout", Callable(self, "_on_survival_timer_timeout"))
+
+	# 检查是否有重启保留数据
+	if restart_persistent_data.size() > 0:
+		print("GameManager: 检测到重启保留数据，恢复...")
+		var level_manager = get_node_or_null("/root/LevelManager")
+		var talents = get_node_or_null("/root/Talents")
+		if level_manager:
+			if restart_persistent_data.has("player_level"): level_manager.player_level = restart_persistent_data["player_level"]
+			if restart_persistent_data.has("player_exp"): level_manager.player_exp = restart_persistent_data["player_exp"]
+			if restart_persistent_data.has("exp_to_next_level"): level_manager.exp_to_next_level = restart_persistent_data["exp_to_next_level"]
+			if restart_persistent_data.has("current_level"): level_manager.current_level = restart_persistent_data["current_level"]
+			if restart_persistent_data.has("talent_points"): level_manager.talent_points = restart_persistent_data["talent_points"]
+			if restart_persistent_data.has("total_talent_points"): level_manager.total_talent_points = restart_persistent_data["total_talent_points"]
+			print("GameManager: 已恢复LevelManager数据")
+			level_manager.update_player_attributes() # 只调用一次，负责设置 health/max_health
+			# 刷新属性栏
+			var ui_manager = get_node_or_null("/root/Main/UI")
+			if ui_manager and ui_manager.has_node("BottomPanel/属性"):
+				var attribute_panel = ui_manager.get_node("BottomPanel/属性")
+				if attribute_panel.has_method("update_player_stats"):
+					attribute_panel.update_player_stats()
+			if ui_manager and ui_manager.has_method("update_player_level"):
+				ui_manager.update_player_level()
+			if ui_manager and ui_manager.has_method("update_level_display"):
+				ui_manager.update_level_display()
+		if talents and restart_persistent_data.has("player_talents"):
+			talents.player_talents = restart_persistent_data["player_talents"].duplicate(true)
+			print("GameManager: 已恢复天赋数据")
+		restart_persistent_data.clear()
 
 func add_score(coins):
 	if not game_running:
@@ -116,7 +168,20 @@ func game_over():
 	# 游戏结束UI由UI管理器处理
 
 func restart_game():
-	print("GameManager: restart_game() called. Reloading current scene.")
+	# 保存需要保留的数据
+	var level_manager = get_node_or_null("/root/LevelManager")
+	var talents = get_node_or_null("/root/Talents")
+	restart_persistent_data = {}
+	if level_manager:
+		restart_persistent_data["player_level"] = level_manager.player_level
+		restart_persistent_data["player_exp"] = level_manager.player_exp
+		restart_persistent_data["exp_to_next_level"] = level_manager.exp_to_next_level
+		restart_persistent_data["current_level"] = level_manager.current_level
+		restart_persistent_data["talent_points"] = level_manager.talent_points
+		restart_persistent_data["total_talent_points"] = level_manager.total_talent_points
+	if talents:
+		restart_persistent_data["player_talents"] = talents.player_talents.duplicate(true)
+	print("GameManager: restart_game() called. Reloading current scene. 保留数据:", restart_persistent_data)
 	get_tree().reload_current_scene()
 	emit_signal("game_restarted")
 
