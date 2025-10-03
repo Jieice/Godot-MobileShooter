@@ -35,8 +35,7 @@ func _init_after_ready():
 		print("LevelManager not found!")
 	else:
 		print("LevelManager:", level_manager)
-		print("GameManager: 主动启动关卡", level_manager.current_level)
-		level_manager.start_level(level_manager.current_level)
+	# 移除主动调用 start_level，关卡推进全部交给 LevelManager.complete_level()
 	print("GameManager._ready: Global.restart_temp_score=", Global.restart_temp_score, ", Global.restart_temp_diamonds=", Global.restart_temp_diamonds)
 	print("GameManager: _ready() called, Global.restart_level_number=", Global.restart_level_number)
 	add_to_group("game_manager")

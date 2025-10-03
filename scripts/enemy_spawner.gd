@@ -233,7 +233,6 @@ func spawn_boss():
 			spawn_position.x = -50
 			spawn_position.y = randf_range(0, screen_size.y)
 	enemy.position = spawn_position
-	add_child(enemy)
 	enemy.global_position = enemy.position
 	enemy.target = player
 	print("[spawn_boss] enemy.target=", enemy.target, " player=", player, " 位置:", enemy.position)
@@ -245,7 +244,7 @@ func spawn_boss():
 		# 新增：敌人死亡时，玩家获得经验。使用 .bind() 确保只传递 score_value 作为 add_experience 的参数
 		enemy.connect("enemy_died", Callable(level_manager, "add_experience").bind(enemy.score_value))
 	
-	# 将 BOSS 敌人添加到场景中
+	# 只保留一次 add_child
 	add_child(enemy)
 
 # 敌人生成定时器超时时调用

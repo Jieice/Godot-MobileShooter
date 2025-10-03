@@ -149,12 +149,20 @@ func _ready():
 	add_to_group("level_manager")
 	print("LevelManager: 初始玩家等级: ", player_level, ", 初始天赋点: ", talent_points, ", 初始关卡: ", current_level)
 	update_player_attributes()
+	call_deferred("_deferred_start_level")
+
+func _deferred_start_level():
+	print("LevelManager: _deferred_start_level called")
+	start_level(current_level)
 
 # 开始指定关卡
 func start_level(level_number, wave := 0, progress := 0):
 	print("LevelManager: start_level() called with level_number:", level_number)
-	var enemy_spawner = get_parent().get_node_or_null("EnemySpawner")
+	var enemy_spawner = get_node_or_null("/root/Main/EnemySpawner")
 	print("LevelManager: enemy_spawner =", enemy_spawner)
+	if not enemy_spawner:
+		print("LevelManager: EnemySpawner 获取失败，无法刷怪！请检查节点名和场景结构。")
+		return
 	if level_number < 1:
 		push_error("无效的关卡编号: " + str(level_number))
 		return
@@ -227,12 +235,12 @@ func start_new_wave():
 # 完成当前关卡
 func complete_level():
 	print("LevelManager: complete_level() called")
-	var enemy_spawner = get_node("/root/Main/EnemySpawner")
+	var enemy_spawner = get_parent().get_node_or_null("EnemySpawner")
 	if enemy_spawner:
 		enemy_spawner.stop()
 	
 	# 给予奖励
-	var game_manager = get_node("/root/Main/GameManager")
+	var game_manager = get_parent().get_node_or_null("GameManager")
 	if game_manager:
 		var reward = 50 + current_level * 10
 		game_manager.add_score(reward)
@@ -242,9 +250,8 @@ func complete_level():
 	
 	# 自动进入下一关
 	current_level += 1
-	
-	# 模拟新关卡的开始，触发UI更新
-	emit_signal("level_started", current_level, get_level_config())
+	print("LevelManager: 自动进入下一关:", current_level)
+	start_level(current_level)
 	
 	# 刷新存档面板UI（最高关卡等信息）
 	var save_panel = get_node_or_null("/root/Main/UI/BottomPanel/设置/SaveManagerSection")

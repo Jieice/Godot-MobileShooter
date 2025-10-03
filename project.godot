@@ -10,10 +10,18 @@ config_version=5
 
 [application]
 
-config/name="MobileShooter"
+config/name="DimensionDefender"
+config/description="> 在多维空间中，怪物潮水般来袭。你将扮演界维守卫者，自动射击、成长升级，抵御一波又一波的怪物，解锁多样天赋，体验爽快的弹幕闯关与成长乐趣！
+>
+> - 自动射击，轻松上手
+> - 多样天赋成长，策略搭配
+> - 精英、Boss怪物挑战不断
+> - 关卡制推进，难度平滑递增
+> - 自动存档，随时断点续玩"
+config/version="0.2"
 run/main_scene="res://scenes/StudioSplash.tscn"
 config/features=PackedStringArray("4.5")
-config/icon="res://icon.svg"
+config/icon="uid://cf4hsf2k0lepi"
 
 [autoload]
 
@@ -31,8 +39,8 @@ SaveManager="*res://scripts/save_manager.gd"
 window/size/viewport_width=720
 window/size/viewport_height=1280
 window/size/resizable=false
-window/size/window_width_override=600
-window/size/window_height_override=1000
+window/size/window_width_override=360
+window/size/window_height_override=640
 window/stretch/mode="canvas_items"
 window/handheld/orientation=1
 
